@@ -32,6 +32,7 @@ export const getExt = (type: string): LX.Download.FileExt => {
   switch (type) {
     case 'ape':
       return 'ape'
+    case 'master':
     case 'flac':
     case 'flac24bit':
       return 'flac'
