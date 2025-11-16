@@ -100,7 +100,7 @@ export default () => {
   const rOnTimeupdate = onTimeupdate(() => {
     const time = getCurrentTime()
     const duration = playProgress.maxPlayTime
-    if (duration > 10 && duration - time < 10 && !preloadMusicInfo.info) {
+    if (duration > 20 && duration - time < 20 && !preloadMusicInfo.info) {
       void preloadNextMusicUrl(time)
     }
   })
