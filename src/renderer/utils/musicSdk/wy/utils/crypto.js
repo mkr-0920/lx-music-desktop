@@ -1,4 +1,3 @@
-// https://github.com/Binaryify/NeteaseCloudMusicApi/blob/master/util/crypto.js
 import { createCipheriv, createDecipheriv, publicEncrypt, randomBytes, createHash, constants } from 'crypto'
 const iv = Buffer.from('0102030405060708')
 const presetKey = Buffer.from('0CoJUm6Qyw8W8jud')
@@ -14,6 +13,7 @@ const aesEncrypt = (buffer, mode, key, iv) => {
 
 const aesDecrypt = function(cipherBuffer, mode, key, iv) {
   let decipher = createDecipheriv(mode, key, iv)
+  decipher.setAutoPadding(true)
   return Buffer.concat([decipher.update(cipherBuffer), decipher.final()])
 }
 
@@ -49,6 +49,19 @@ export const eapi = (url, object) => {
   }
 }
 
-export const eapiDecrypt = cipherBuffer => {
-  return aesDecrypt(cipherBuffer, 'aes-128-ecb', eapiKey, '').toString()
+/**
+ * 1. 接收 hex 字符串 (httpFetch 返回的 raw)
+ * 2. 从 hex 转换为 buffer
+ * 3. 调用 aesDecrypt
+ * 4. 将解密后的 buffer 转回 utf8 字符串
+ */
+export const eapiDecrypt = (encryptedTextHex) => {
+  try {
+    const encryptedBuffer = Buffer.from(encryptedTextHex, 'hex')
+    const decryptedBuffer = aesDecrypt(encryptedBuffer, 'aes-128-ecb', eapiKey, '')
+    return decryptedBuffer.toString('utf8')
+  } catch (err) {
+    console.error('[WY eapiDecrypt] 解密失败:', err)
+    return '{"code": 500, "message": "Decryption failed"}' // 返回错误 JSON
+  }
 }
