@@ -1,12 +1,13 @@
+/* eslint-disable no-undef */
 import { computed, ref, reactive, nextTick } from '@common/utils/vueTools'
 import { useI18n } from '@renderer/plugins/i18n'
 import { userLists, defaultList, loveList } from '@renderer/store/list/state'
 import musicSdk from '@renderer/utils/musicSdk'
 import { addLocalFile } from './actions'
+import syncListToCloud from '@renderer/store/list/syncListToCloud'
 
 export default ({
   emit,
-
   handleRename,
   handleDuplicateList,
   handleSortList,
@@ -25,6 +26,7 @@ export default ({
     import: true,
     export: true,
     sync: false,
+    sync_to_cloud: false,
     remove: true,
   })
   const t = useI18n()
@@ -57,6 +59,11 @@ export default ({
         name: t('lists__sync'),
         action: 'sync',
         disabled: !menuControl.sync,
+      },
+      {
+        name: t('lists__sync_to_cloud'),
+        action: 'sync_to_cloud',
+        disabled: !menuControl.sync_to_cloud,
       },
       {
         name: t('lists__source_detail'),
@@ -104,13 +111,20 @@ export default ({
         menuControl.rename = false
         menuControl.remove = false
         menuControl.sync = false
+        menuControl.sync_to_cloud = false
         break
-      default:
+      default: {
         menuControl.rename = true
         menuControl.remove = true
         source = userLists[index].source
+        const list = userLists[index]
+        // 在这里计算 "同步至云端" 的 flag
+        menuControl.sync_to_cloud =
+          !!list.sourceListId &&
+          list.source === 'wy'
         menuControl.sync = !!source && !!musicSdk[source]?.songList
         break
+      }
     }
     // menuControl.sort = !!getList(this.getTargetListInfo(index)?.id).length
     menuControl.sourceDetail = assertSupportDetail(source, index)
@@ -175,6 +189,9 @@ export default ({
         break
       case 'sync':
         handleUpdateSourceList(listInfo)
+        break
+      case 'sync_to_cloud':
+        syncListToCloud(listInfo)
         break
       case 'remove':
         handleRemove(listInfo)
