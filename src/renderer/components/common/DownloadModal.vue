@@ -64,7 +64,7 @@ export default {
     getTypeName(quality) {
       switch (quality) {
         case 'master':
-          return 'Master - 母带'
+          return this.$t('download__master') + ' ' + quality.toUpperCase()
         case 'flac24bit':
           return this.$t('download__lossless') + ' FLAC Hires'
         case 'flac':
