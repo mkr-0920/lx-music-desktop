@@ -15,7 +15,7 @@ export default {
       needCorrect: 'true',
       channel: 'typing',
       e_r: true,
-    })
+    }, 'pc')
     // // 返回解密后的 body
     return searchRequest.promise.then(({ body }) => body)
   },
