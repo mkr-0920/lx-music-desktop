@@ -7,7 +7,7 @@ import { getPlayInfo } from './musicInfo' // <--- 修改导入
  */
 export default (songInfo) => {
   // 使用从 musicInfo.js 导入的 getPlayInfo
-  const promise = getPlayInfo(songInfo.songmid).then(playInfo => { // <--- 修改调用
+  const promise = getPlayInfo(songInfo.songmid).then(playInfo => {
     if (!playInfo || !playInfo.lyrics) {
       console.warn('[MyMusic] getLyric 警告: API 响应中没有找到 "lyrics" 字段', playInfo)
       return {

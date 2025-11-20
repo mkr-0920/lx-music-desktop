@@ -35,15 +35,15 @@ export const eapiRequest = (url, data, clientType = 'pc') => {
 
   requestObj.promise = requestObj.promise.then(({ body, raw }) => {
     // raw 是服务器返回的原始文本 (这就是加密的 hex 字符串)
-    console.log('[WY eapiRequest] 收到 httpFetch 原始文本 (raw):', raw)
+    // console.log('[WY eapiRequest] 收到 httpFetch 原始文本 (raw):', raw)
     // 3.1. 解密 (调用 crypto.js 里的函数)
     const decryptedText = eapiDecrypt(raw)
-    console.log('[WY eapiRequest] 解密后的文本:', decryptedText)
+    // console.log('[WY eapiRequest] 解密后的文本:', decryptedText)
     let decryptedJson
     try {
       // 3.2. 手动解析 JSON
       decryptedJson = JSON.parse(decryptedText)
-      console.log('[WY eapiRequest] 解密并解析JSON成功:', decryptedJson)
+      // console.log('[WY eapiRequest] 解密并解析JSON成功:', decryptedJson)
     } catch (e) {
       console.error('[WY eapiRequest] JSON 解析失败:', e)
       decryptedJson = { code: 501, message: 'JSON Parse failed' }
@@ -58,3 +58,55 @@ export const eapiRequest = (url, data, clientType = 'pc') => {
 
   return requestObj
 }
+
+export const oldEapiRequest = (url, data) => {
+  return httpFetch('http://interface.music.163.com/eapi/batch', {
+    method: 'post',
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36',
+      origin: 'https://music.163.com',
+    },
+    form: eapi(url, data),
+  })
+}
+
+//   const baseUrl = 'https://interface3.music.163.com'
+//   const fullEapiUrl = `${baseUrl}${url.replace('/api/', '/eapi/')}`
+//   const encryptedForm = eapi(url, data)
+//   const headers = {
+//     'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.90 Safari/537.36',
+//   }
+//   console.log(`[WY eapiRequest] 准备发送请求: ${fullEapiUrl}`)
+//   console.log('[WY eapiRequest] 加密的表单:', encryptedForm)
+
+//   const requestObj = httpFetch(fullEapiUrl, {
+//     method: 'post',
+//     headers,
+//     form: encryptedForm,
+//   })
+
+//   requestObj.promise = requestObj.promise.then(({ body, raw }) => {
+//     // raw 是服务器返回的原始文本 (这就是加密的 hex 字符串)
+//     console.log('[WY eapiRequest] 收到 httpFetch 原始文本 (raw):', raw)
+//     // 3.1. 解密 (调用 crypto.js 里的函数)
+//     const decryptedText = eapiDecrypt(raw)
+//     console.log('[WY eapiRequest] 解密后的文本:', decryptedText)
+//     let decryptedJson
+//     try {
+//       // 3.2. 手动解析 JSON
+//       decryptedJson = JSON.parse(decryptedText)
+//       console.log('[WY eapiRequest] 解密并解析JSON成功:', decryptedJson)
+//     } catch (e) {
+//       console.error('[WY eapiRequest] JSON 解析失败:', e)
+//       decryptedJson = { code: 501, message: 'JSON Parse failed' }
+//     }
+
+//     // 3.3. 返回【解密后】的 JSON 对象
+//     return { body: decryptedJson, raw: decryptedText }
+//   }).catch(err => {
+//     console.error('[WY eapiRequest] httpFetch 或解密/解析失败:', err)
+//     throw err
+//   })
+
+//   return requestObj
+// }
