@@ -3,6 +3,7 @@
 import musicSearch from './musicSearch'
 import getLyric from './lyric'
 import { getMusicUrl, getPic, getMusicInfo } from './musicInfo'
+import leaderboard from './leaderboard'
 
 // --- 为未实现的功能添加“桩” ---
 
@@ -13,19 +14,6 @@ const hotSearch = {
   }),
 }
 
-const leaderboard = {
-  getBoards: () => Promise.resolve({
-    list: [],
-    source: 'mkr',
-  }),
-  getList: (board, page) => Promise.resolve({
-    list: [],
-    allPage: 1,
-    limit: 30,
-    total: 0,
-    source: 'mkr',
-  }),
-}
 const songList = {
   getTags: () => Promise.resolve({
     list: [],
