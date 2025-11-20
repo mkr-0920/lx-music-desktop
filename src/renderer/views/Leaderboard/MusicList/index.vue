@@ -31,6 +31,7 @@ const {
   listDetailInfo,
   getList,
   handlePlayList,
+  handleRefresh,
 } = useList()
 
 watch(() => props.boardId, (boardId) => {
@@ -53,7 +54,7 @@ const hideMenu = () => {
   listRef.value.handleMenuClick()
 }
 
-defineExpose({ hideMenu })
+defineExpose({ hideMenu, handleRefresh })
 
 
 </script>

@@ -4,7 +4,7 @@ import kg from './kg/index'
 import tx from './tx/index'
 import wy from './wy/index'
 import mg from './mg/index'
-import bd from './bd/index'
+// import bd from './bd/index'
 // 导入xm, mkr音源模块 (xm为兼容旧版)
 import xm from './xm'
 import mkr from './mkr/index'
@@ -12,6 +12,28 @@ import mkr from './mkr/index'
 import { supportQuality } from './api-source'
 // 导入 userApi 状态
 import { userApi } from '@renderer/store'
+
+import leaderboard_daily from './mkr/leaderboard_daily'
+import leaderboard_fm from './mkr/leaderboard_fm'
+
+const wy_daily = {
+  leaderboard: leaderboard_daily, // 挂载日推列表逻辑
+  // 复用 wy 的播放/歌词/封面逻辑
+  getMusicUrl: wy.getMusicUrl,
+  getLyric: wy.getLyric,
+  getPic: wy.getPic,
+  getMusicInfo: wy.getMusicInfo,
+}
+
+// 【【【 3. 定义 wy_fm (私人FM) 音源对象 】】】
+const wy_fm = {
+  leaderboard: leaderboard_fm, // 挂载 FM 列表逻辑
+  // 复用 wy 的播放/歌词/封面逻辑
+  getMusicUrl: wy.getMusicUrl,
+  getLyric: wy.getLyric,
+  getPic: wy.getPic,
+  getMusicInfo: wy.getMusicInfo,
+}
 
 // 定义所有音源的列表和对象
 const sources = {
@@ -45,6 +67,14 @@ const sources = {
       name: '我的音乐',
       id: 'mkr',
     },
+    {
+      name: '网易风格推荐',
+      id: 'wy_daily',
+    },
+    {
+      name: '网易私人FM',
+      id: 'wy_fm',
+    },
     // {
     //   name: '百度音乐',
     //   id: 'bd',
@@ -56,9 +86,11 @@ const sources = {
   tx,
   wy,
   mg,
-  bd,
+  // bd,
   xm,
   mkr,
+  wy_daily,
+  wy_fm,
 }
 export default {
   // 导出所有音源模块
@@ -95,7 +127,7 @@ export default {
           source.id == s || // 2. 跳过：如果是刚刚播放失败的那个源 (s)
           excludeSource.includes(source.id) || // 3. 跳过：如果在排除列表里 (如 xm)
           !availableApiSources[source.id]?.getMusicUrl // // 4. 该源是否在“已注册的 API 脚本”中，并且提供了 getMusicUrl 动作
-      ) continue // !! 注意：这里没有检查 API 脚本是否支持该源的 musicUrl
+      ) continue
       // 将搜索任务（一个Promise）添加到任务数组
       tasks.push(sources[source.id].musicSearch.search(`${musicName} ${singer || ''}`.trim(), 1, limit).catch(_ => null))
     }

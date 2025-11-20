@@ -5,6 +5,7 @@ import { addSongListDetail, playSongListDetail } from '../action'
 export default ({
   emit,
   list,
+  propsSource,
 }) => {
   // const menuControl = reactive({
   //   play: true,
@@ -13,6 +14,7 @@ export default ({
   const t = useI18n()
   const menuLocation = reactive({ x: 0, y: 0 })
   const isShowMenu = ref(false)
+  const currentSource = ref('')
 
   const menus = computed(() => {
     return [
@@ -26,6 +28,12 @@ export default ({
         action: 'collect',
         disabled: false,
       },
+      {
+        name: t('list__refresh'),
+        action: 'refresh',
+        // 只有 wy_fm 才显示 (disable 为 false)
+        disabled: currentSource.value !== 'wy_fm',
+      },
     ]
   })
 
@@ -33,6 +41,7 @@ export default ({
   const showMenu = (event, index) => {
     menuLocation.x = event.pageX
     menuLocation.y = event.pageY
+    currentSource.value = propsSource.value
 
     if (isShowMenu.value) return
     emit('show-menu')
@@ -58,6 +67,10 @@ export default ({
         break
       case 'collect':
         addSongListDetail(board.id, board.name, source)
+        break
+      case 'refresh':
+        // 我们触发一个 'refresh' 事件, 让父组件去处理
+        emit('refresh', board.id)
         break
     }
   }

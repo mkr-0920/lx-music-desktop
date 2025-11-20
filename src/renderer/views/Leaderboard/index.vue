@@ -4,7 +4,7 @@
       <div :class="$style.listsSelect">
         <base-selection :model-value="source" :class="$style.select" :list="sourceList" item-key="id" item-name="name" @update:model-value="handleToggleSource" />
       </div>
-      <BoardList ref="boardListRef" :board-id="boardId" :source="source" @show-menu="$refs.musicListRef?.hideMenu()" />
+      <BoardList ref="boardListRef" :board-id="boardId" :source="source" @show-menu="$refs.musicListRef?.hideMenu() " @refresh="handleRefresh" />
     </div>
     <div :class="$style.list">
       <MusicList ref="musicListRef" :source="source" :board-id="boardId" @show-menu="$refs.boardListRef?.hideMenu()" />
@@ -71,6 +71,17 @@ export default {
         },
       })
     }
+    const handleRefresh = () => {
+      if (musicListRef.value) {
+        if (musicListRef.value.handleRefresh) {
+          musicListRef.value.handleRefresh()
+        } else {
+          console.error('[Debug] 错误：子组件没有 handleRefresh 方法！(请检查 MusicList/index.vue 的 defineExpose)')
+        }
+      } else {
+        console.error('[Debug] 错误：musicListRef 为空！')
+      }
+    }
 
     return {
       source,
@@ -79,6 +90,7 @@ export default {
       handleToggleSource,
       musicListRef,
       boardListRef,
+      handleRefresh,
     }
   },
 }

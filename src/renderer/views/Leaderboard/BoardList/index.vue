@@ -23,7 +23,7 @@
 </template>
 
 <script setup>
-import { watch, shallowReactive, ref } from '@common/utils/vueTools'
+import { watch, shallowReactive, ref, toRef } from '@common/utils/vueTools'
 import { getBoardsList, setBoard } from '@renderer/store/leaderboard/action'
 import { boards } from '@renderer/store/leaderboard/state'
 import useMenu from './useMenu'
@@ -40,7 +40,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['show-menu'])
+const emit = defineEmits(['show-menu', 'refresh'])
 
 const router = useRouter()
 const route = useRoute()
@@ -64,7 +64,11 @@ const {
   isShowMenu,
   showMenu,
   menuClick,
-} = useMenu({ emit, list })
+} = useMenu({
+  emit,
+  list,
+  propsSource: toRef(props, 'source'),
+})
 
 const handleRigthClick = (event, index) => {
   rightClickItemIndex.value = index

@@ -19,11 +19,23 @@ export default () => {
       })
     })
   }
-
+  const handleRefresh = () => {
+    if (!listDetailInfo.id) {
+      console.error('[Debug] listDetailInfo.id 为空，无法刷新')
+      return
+    }
+    // 第三个参数 true 表示 isRefresh (强制刷新/跳过缓存)
+    void getAndSetListDetail(listDetailInfo.id, listDetailInfo.page, true).then(() => {
+      setTimeout(() => {
+        if (listRef.value) listRef.value.scrollToTop()
+      })
+    })
+  }
   return {
     listRef,
     listDetailInfo,
     getList,
     handlePlayList,
+    handleRefresh,
   }
 }
