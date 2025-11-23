@@ -65,6 +65,8 @@ export default {
       switch (quality) {
         case 'master':
           return this.$t('download__master') + ' ' + quality.toUpperCase()
+        case 'atmos':
+          return this.$t('download__atmos') + ' ' + quality.toUpperCase()
         case 'flac24bit':
           return this.$t('download__lossless') + ' FLAC Hires'
         case 'flac':

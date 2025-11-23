@@ -195,7 +195,6 @@ export default {
       return appSetting['download.fileName'].replace('歌名', downloadInfo.metadata.musicInfo.name).replace('歌手', downloadInfo.metadata.musicInfo.singer)
     }
     const getTypeName = (quality) => {
-      if (quality == 'master') return 'Master'
       return quality == 'flac24bit' ? 'FLAC Hires' : quality?.toUpperCase()
     }
     return {

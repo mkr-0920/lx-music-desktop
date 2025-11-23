@@ -29,8 +29,8 @@ const allSources = ['kw', 'kg', 'tx', 'wy', 'mg', 'mkr', 'local']
 const supportQualitys = {
   kw: ['128k', '320k', 'flac', 'flac24bit'],
   kg: ['128k', '320k', 'flac', 'flac24bit'],
-  tx: ['128k', '320k', 'flac', 'flac24bit', 'master'],
-  wy: ['128k', '320k', 'flac', 'flac24bit', 'master'],
+  tx: ['128k', '320k', 'flac', 'flac24bit', 'atmos', 'master'],
+  wy: ['128k', '320k', 'flac', 'flac24bit', 'atmos', 'master'],
   mg: ['128k', '320k', 'flac', 'flac24bit'],
   mkr: ['128k', '320k', 'flac', 'flac24bit', 'master'],
   local: [],

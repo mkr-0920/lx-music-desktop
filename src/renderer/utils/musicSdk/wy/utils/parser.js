@@ -84,8 +84,11 @@ export const handleResult = (rawList) => {
       // console.log('添加jymaster音质')
       types.push({ type: 'master', size: null })
       _types.master = { size: null }
-    } else if (maxBrLevel === 'sky') _types.sky = { size: null }
-    else if (maxBrLevel === 'jyeffect') _types.jyeffect = { size: null }
+    } else if (maxBrLevel === 'jyeffect' || playMaxBrLevel === 'jyeffect' || plLevel === 'jyeffect' || dlLevel === 'jyeffect') {
+      types.push({ type: 'atmos', size: null })
+      _types.atmos = { size: null }
+    }
+    // else if (maxBrLevel === 'sky') _types.jyeffect = { size: null }
 
     // 【基本信息适配】
     // 歌手: ar vs artists
