@@ -336,6 +336,7 @@
   "setting__basic_playbar_progress_style_mini": "Mini",
   "setting__basic_show_animation": "Show animation",
   "setting__basic_source": "Music API",
+  "setting__basic_wy_user": "NetEase User",
   "setting__basic_source_status_failed": "Failed to initialize",
   "setting__basic_source_status_initing": "Initializing...",
   "setting__basic_source_status_success": "Successfully initialized",

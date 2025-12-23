@@ -50,6 +50,27 @@ dd
       base-btn.btn(min @click="isShowUserApiModal = true") {{ $t('setting__basic_source_user_api_btn') }}
 
 dd
+  h3#basic_wy_user_id {{ $t('setting__basic_wy_user') }}
+  div
+    base-input.gap-left(
+      :model-value="appSetting['common.wyUserId']"
+      placeholder="请输入您的网易云 UID"
+      style="width: 250px"
+      @update:model-value="updateSetting({'common.wyUserId': $event})"
+    )
+
+    .gap-top
+      base-input.gap-left(
+        :model-value="appSetting['common.wyCookie']"
+        placeholder="Cookies (必填，用于日推/私人FM，格式: MUSIC_U=...)"
+        style="width: 450px"
+        @update:model-value="updateSetting({'common.wyCookie': $event})"
+      )
+
+    .gap-top.gap-left
+      span(style="font-size: 12px; opacity: 0.6") * 获取日推歌单和私人FM需要填写 Cookie，UID 仅用于获取公开歌单。
+
+dd
   h3#basic_window_size {{ $t('setting__basic_window_size') }}
   div
     base-checkbox.gap-left(

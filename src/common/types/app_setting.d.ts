@@ -39,6 +39,16 @@ declare global {
       'common.sourceNameType': 'alias' | 'real'
 
       /**
+       * 网易云用户ID
+       */
+      'common.wyUserId': string
+
+      /**
+     * 网易云 Cookie
+     */
+      'common.wyCookie': string
+
+      /**
        * 显示的字体
        */
       'common.font': string

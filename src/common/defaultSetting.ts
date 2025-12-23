@@ -13,6 +13,8 @@ const defaultSetting: LX.AppSetting = {
   'common.langId': null,
   'common.apiSource': 'temp',
   'common.sourceNameType': 'alias',
+  'common.wyUserId': '',
+  'common.wyCookie': '',
   'common.font': '',
   'common.isShowAnimation': true,
   'common.randomAnimate': true,

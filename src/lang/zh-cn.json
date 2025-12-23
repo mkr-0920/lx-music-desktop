@@ -342,6 +342,7 @@
   "setting__basic_playbar_progress_style_mini": "迷你",
   "setting__basic_show_animation": "显示动画效果",
   "setting__basic_source": "自定义源",
+  "setting__basic_wy_user": "网易云账户",
   "setting__basic_source_status_failed": "初始化失败",
   "setting__basic_source_status_initing": "初始化中...",
   "setting__basic_source_status_success": "初始化成功",

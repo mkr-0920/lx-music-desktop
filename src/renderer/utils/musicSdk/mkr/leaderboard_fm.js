@@ -1,24 +1,82 @@
 // [文件: src/renderer/utils/musicSdk/mkr/leaderboard_fm.js]
 
-import { get } from './http'
+import { eapiRequest } from '../wy/utils/index'
+// 导入通用解析器
 import { handleResult } from '../wy/utils/parser'
+// 导入配置以读取 Cookie
+import { appSetting } from '@renderer/store/setting'
+import { toast } from '@renderer/plugins/Tips'
+
+// 构造请求选项 (支持强制指定 OS，解决 FM 模式获取不到的问题)
+const getRequestOptions = (forceOs = null) => {
+  let wyCookie = appSetting['common.wyCookie']
+  if (!wyCookie) {
+    toast('请先在设置中填写网易云 Cookie')
+    return 'mobile'
+  }
+
+  if (forceOs) {
+    // 如果 Cookie 里已有 os=xxx，替换它
+    if (/os=[^;]+/.test(wyCookie)) {
+      wyCookie = wyCookie.replace(/os=[^;]+/, `os=${forceOs}`)
+    } else {
+      // 如果没有，追加它
+      wyCookie += `; os=${forceOs}`
+    }
+    // 确保还有 appver，有些接口需要配合 appver
+    if (!/appver=[^;]+/.test(wyCookie)) {
+      wyCookie += '; appver=9.9.9'
+    } else {
+      // 如果没有，追加它
+      wyCookie += '; appver=9.9.9'
+    }
+  }
+
+  return {
+    mobile: true,
+    headers: {
+      Cookie: wyCookie,
+    },
+  }
+}
 
 export default {
   /**
    * 获取 FM 模式列表 (左侧菜单)
+   * API: /api/link/position/show/resource
    */
   getBoards: async() => {
-    // 调用你的后端获取模式
-    const response = await get('/netease/radio/modes')
-    console.log('getBoards: ', response)
-    // 解析 response
-    // 结构: { code: 200, data: { recommendModeList: [], currentSceneList: [] } }
+    // 构造 extJson
+    const extJson = JSON.stringify({
+      clientLibraAbTest: { 'fm-style-reopen': 't3', fmNameTest0422: 'c' },
+      isHomePageNewFramework: true,
+      userSetFMMode: true,
+      enableAutoPlay: true,
+    })
+
+    const request = eapiRequest(
+      '/api/link/position/show/resource',
+      {
+        positionCode: 'FMTopModeDialog',
+        extJson,
+        header: '{}',
+        e_r: true,
+      },
+      // 这里必须传入 'android' 来伪装设备
+      getRequestOptions('android'),
+    )
+
+    // 发送请求
+    const { body } = await request.promise
+
+    // 解析数据
+    const dslData = body?.data?.crossPlatformResource?.dslData || {}
 
     const list = []
 
-    // 基础模式 (DEFAULT, FAMILIAR, EXPLORE)
-    if (response.recommendModeList) {
-      response.recommendModeList.forEach(mode => {
+    // 基础模式
+    if (dslData.recommendModeList) {
+      dslData.recommendModeList.forEach(mode => {
         list.push({
           id: `wy_fm__${mode.code}`,
           name: mode.title,
@@ -27,14 +85,13 @@ export default {
       })
     }
 
-    // 场景模式 (SCENE_RCMD)
-    if (response.currentSceneList) {
-      response.currentSceneList.forEach(scene => {
+    // 场景模式
+    if (dslData.currentSceneList) {
+      dslData.currentSceneList.forEach(scene => {
         list.push({
           id: `wy_fm__scene_${scene.code}`,
           name: scene.title,
-          // 使用特殊分隔符组合 mode 和 sub_mode
-          bangid: `scene_${scene.code}`,
+          bangid: `SCENE_RCMD@${scene.code}`,
         })
       })
     }
@@ -46,50 +103,67 @@ export default {
   },
 
   /**
-   * 目标：凑够 30 首歌再返回
+   * 获取歌曲列表
+   * API: /api/v1/radio/get
    */
   getList: async(bangid, page) => {
+    // 获取歌曲建议也伪装成 Android，更加稳妥
+    const options = getRequestOptions('android')
+
+    // 检查 Cookie
+    if (!options.headers?.Cookie) {
+      throw new Error('请先在设置中填写网易云 Cookie')
+    }
+
     // 解析参数
     let mode = bangid
     let subMode = null
 
-    if (bangid.includes('_')) {
-      const parts = bangid.split('_')
-      mode = parts[0] // SCENE_RCMD
-      subMode = parts[1] // e.g. NIGHT_EMO
+    if (bangid.includes('@')) {
+      const parts = bangid.split('@')
+      mode = parts[0]
+      subMode = parts[1]
+    } else if (bangid.startsWith('wy_fm__')) {
+      mode = bangid.replace('wy_fm__', '')
     }
 
     // 准备循环
-    const targetTotal = 30 // 目标: 一次拿 30 首
-    let collectedList = [] // 蓄水池
-    const maxRetry = 10 // 防止死循环 (最多请求 10 次接口)
+    const targetTotal = 30
+    let collectedList = []
+    const maxRetry = 10
 
-    const params = {
+    const requestData = {
       mode,
-      limit: 3, // 官方限制只能传 3
+      entranceType: 'main_bottom_tab',
+      limit: '3',
+      openAidj: 'false',
+      header: '{}',
+      e_r: true,
     }
     if (subMode) {
-      params.sub_mode = subMode
+      requestData.subMode = subMode
     }
 
-    // 开始串行循环 (Serial Loop)
+    // 开始串行循环
     for (let i = 0; i < maxRetry; i++) {
-      // 如果已经凑够了，停止循环
       if (collectedList.length >= targetTotal) break
 
       try {
-        const response = await get('/netease/radio', params)
+        const response = await eapiRequest(
+          '/api/v1/radio/get',
+          requestData,
+          options,
+        ).promise
 
-        // 3.检查数据
-        if (!response || response.length === 0) {
+        const rawData = response.body?.data
+
+        if (!rawData || rawData.length === 0) {
           console.log('[WY FM] 接口没数据了，停止获取')
           break
         }
 
-        // 3.解析当前批次 (3首)
-        const currentBatch = handleResult(response)
+        const currentBatch = handleResult(rawData)
 
-        // 3.加入蓄水池 (简单的去重，防止网易云发疯返回重复的)
         currentBatch.forEach(song => {
           const exists = collectedList.some(s => s.songmid === song.songmid)
           if (!exists) {
@@ -97,17 +171,13 @@ export default {
           }
         })
 
-        // 稍微停顿一下，避免请求过于密集
         await new Promise(resolve => setTimeout(resolve, 200))
       } catch (err) {
         console.error('[WY FM] 获取部分歌曲失败:', err)
-        // 如果出错但手里已经有歌了，就别崩，直接返回现有的
         if (collectedList.length > 0) break
-        throw err // 如果一首都还没有，那只能报错了
       }
     }
 
-    // 返回结果 (伪装成只有 1 页)
     return {
       list: collectedList,
       allPage: 1,
