@@ -9,8 +9,13 @@ import { filterRules } from '../utils'
 // type ListInfoType = LX.Dislike.UserListInfoFull | LX.Dislike.MyDefaultListInfoFull | LX.Dislike.MyLoveListInfoFull
 
 // let wss: LX.Sync.Server.SocketServer | null
-let syncingId: string | null = null
-const wait = async(time = 1000) => await new Promise((resolve, reject) => setTimeout(resolve, time))
+let syncQueue: Promise<void> = Promise.resolve()
+
+export const runDislikeSyncTask = async<T>(task: () => Promise<T>): Promise<T> => {
+  const currentTask = syncQueue.catch(() => {}).then(task)
+  syncQueue = currentTask.then(() => {}, () => {})
+  return currentTask
+}
 
 
 const getRemoteListData = async(socket: LX.Sync.Server.Socket): Promise<LX.Dislike.DislikeRules> => {
@@ -214,22 +219,19 @@ const syncDislike = async(socket: LX.Sync.Server.Socket) => {
 
 export const sync = async(socket: LX.Sync.Server.Socket) => {
   let disconnected = false
-  socket.onClose(() => {
+  const removeCloseListener = socket.onClose(() => {
     disconnected = true
-    if (syncingId == socket.keyInfo.clientId) syncingId = null
   })
 
-  while (true) {
-    if (disconnected) throw new Error('disconnected')
-    if (!syncingId) break
-    await wait()
+  try {
+    await runDislikeSyncTask(async() => {
+      if (disconnected) throw new Error('disconnected')
+      await syncDislike(socket)
+      if (disconnected) throw new Error('disconnected')
+      await finishedSync(socket)
+      socket.moduleReadys.dislike = true
+    })
+  } finally {
+    removeCloseListener()
   }
-
-  syncingId = socket.keyInfo.clientId
-  await syncDislike(socket).then(async() => {
-    await finishedSync(socket)
-    socket.moduleReadys.dislike = true
-  }).finally(() => {
-    syncingId = null
-  })
 }

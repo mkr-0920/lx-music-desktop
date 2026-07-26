@@ -17,9 +17,10 @@
 </template>
 
 <script>
-import { computed } from '@common/utils/vueTools'
+import { onBeforeUnmount, ref, watch } from '@common/utils/vueTools'
 import { defaultList, loveList, userLists } from '@renderer/store/list/state'
 import { addListMusics, moveListMusics, createUserList } from '@renderer/store/list/action'
+import { findWyRemoteDraft, getWyRemoteTargets, resolveWyRemoteTarget } from '@renderer/store/list/wyRemoteDraft'
 import useKeyDown from '@renderer/utils/compositions/useKeyDown'
 import { useI18n } from '@root/lang'
 import { dialog } from '@renderer/plugins/Dialog'
@@ -67,14 +68,60 @@ export default {
   setup(props) {
     const keyModDown = useKeyDown('mod')
     const t = useI18n()
+    const lists = ref([])
+    let remoteTargets = []
+    let stopWatchUserList = null
 
-    const lists = computed(() => {
-      return [
+    const updateLists = () => {
+      const resolvedRemoteTargets = remoteTargets.map(item => ({
+        ...item,
+        id: findWyRemoteDraft(item.remoteBoardId)?.id ?? item.id,
+      }))
+      const remoteTargetIds = new Set(resolvedRemoteTargets.map(item => item.id))
+      lists.value = [
         { ...defaultList, name: t(defaultList.name) },
         { ...loveList, name: t(loveList.name) },
-        ...userLists,
+        ...userLists.filter(list => (
+          !list.id.startsWith('wy_remote_') &&
+          !remoteTargetIds.has(list.id) &&
+          !(list.source == 'mkr' && list.sourceListId?.startsWith('board__mkr__'))
+        )),
+        ...resolvedRemoteTargets.map(item => ({ ...item, name: `${t('my_list__wy_group')} · ${item.name}` })),
       ].filter(l => !props.excludeListId.includes(l.id))
+    }
+    const getList = async(isReloadRemote = false) => {
+      if (!isReloadRemote) {
+        updateLists()
+        return
+      }
+      remoteTargets = []
+      updateLists()
+      try {
+        remoteTargets = await getWyRemoteTargets()
+      } catch (error) {
+        console.error('[List Add Multiple] Failed to load NetEase playlists:', error)
+      }
+      updateLists()
+    }
+
+    watch(() => props.show, show => {
+      if (!show) {
+        if (stopWatchUserList) {
+          stopWatchUserList()
+          stopWatchUserList = null
+        }
+        return
+      }
+      void getList(true)
+      stopWatchUserList = watch(userLists, () => {
+        void getList()
+      })
     })
+
+    onBeforeUnmount(() => {
+      if (stopWatchUserList) stopWatchUserList()
+    })
+
     return {
       keyModDown,
       lists,
@@ -109,11 +156,17 @@ export default {
           ? 4
           : width < 3840 ? 5 : 6
     },
-    handleClick(index) {
+    async handleClick(index) {
       const list = 'progress' in this.musicList[0] ? this.musicList.map(t => t.metadata.musicInfo) : this.musicList
+      const target = this.lists[index]
+      let targetId = target.id
+      if (target.remoteBoardId) {
+        const targetList = await resolveWyRemoteTarget(target)
+        targetId = target.id = targetList.id
+      }
 
-      if (this.isMove) void moveListMusics(this.fromListId, this.lists[index].id, list)
-      else void addListMusics(this.lists[index].id, list)
+      if (this.isMove) await moveListMusics(this.fromListId, targetId, list)
+      else await addListMusics(targetId, list)
 
       if (this.keyModDown && !this.isMove) return
       this.$nextTick(() => {

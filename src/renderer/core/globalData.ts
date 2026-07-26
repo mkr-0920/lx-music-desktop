@@ -15,6 +15,16 @@ window.lx = {
       keys: {},
     },
   },
+  albumInfo: {
+    searchKey: '',
+    searchPosition: 0,
+  },
+  artistDetailInfo: {
+    id: '',
+    albums: [],
+    sort: 'newest',
+    scrollPosition: 0,
+  },
   songListInfo: {
     fromName: '',
     searchKey: '',

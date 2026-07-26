@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import { httpGet } from './request'
 import pkg from '../../../package.json'
 
@@ -48,6 +49,15 @@ const getNpmPkgInfo = async(url) => {
 }
 
 export const getVersionInfo = async(index = 0) => {
+  // 【新增代码】：直接返回当前版本，伪装成已是最新版
+  return Promise.resolve({
+    version: pkg.version,
+    desc: 'Update check currently disabled',
+    history: [],
+  })
+
+  // 【注释掉原有的代码】
+  /*
   const [url, source] = address[index]
   let promise
   switch (source) {
@@ -64,6 +74,7 @@ export const getVersionInfo = async(index = 0) => {
     if (index >= address.length) throw err
     return getVersionInfo(index)
   })
+  */
 }
 
 // getVersionInfo().then(info => {

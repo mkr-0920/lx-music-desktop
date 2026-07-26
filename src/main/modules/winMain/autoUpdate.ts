@@ -142,6 +142,6 @@ const checkUpdate = () => {
     handleSendEvent({ type: WIN_MAIN_RENDERER_EVENT_NAME.update_error, info: 'failed' })
   } else {
     autoUpdater.autoDownload = global.lx.appSetting['common.tryAutoUpdate']
-    void autoUpdater.checkForUpdates()
+    // void autoUpdater.checkForUpdates()
   }
 }

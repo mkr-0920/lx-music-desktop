@@ -322,7 +322,9 @@ export const musicsPositionUpdate = (listId: string, position: number, ids: stri
   const map = new Map<string, LX.Music.MusicInfo>()
   for (const item of newTargetList) map.set(item.id, item)
   for (const id of ids) {
-    infos.push(map.get(id)!)
+    const info = map.get(id)
+    if (!info) continue
+    infos.push(info)
     map.delete(id)
   }
   newTargetList = newTargetList.filter(mInfo => map.has(mInfo.id))

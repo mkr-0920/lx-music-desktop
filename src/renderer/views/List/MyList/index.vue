@@ -16,6 +16,7 @@
       </div>
     </div>
     <ul ref="dom_lists_list" class="scroll" :class="[$style.listsContent, { [$style.sortable]: isModDown }]">
+      <li class="default-list" :class="$style.groupTitle">{{ $t('my_list__local_group') }}</li>
       <li
         class="default-list" :class="[$style.listsItem, {[$style.active]: defaultList.id == listId}, {[$style.clicked]: rightClickItemIndex == -2}, {[$style.fetching]: fetchingListStatus[defaultList.id]}]"
         :aria-label="$t(defaultList.name)" :aria-selected="defaultList.id == listId"
@@ -46,7 +47,7 @@
         </span>
       </li>
       <li
-        v-for="(item, index) in userLists"
+        v-for="{ item, index } in localUserListEntries"
         :key="item.id" class="user-list"
         :class="[$style.listsItem, {[$style.active]: item.id == listId}, {[$style.clicked]: rightClickItemIndex == index}, {[$style.fetching]: fetchingListStatus[item.id]}]"
         :data-index="index" :aria-label="item.name" :aria-selected="defaultList.id == listId" @contextmenu="handleListsItemRigthClick($event, index)"
@@ -70,8 +71,61 @@
           />
         </li>
       </transition>
+      <li class="default-list" :class="$style.groupTitle">
+        <span>{{ $t('my_list__wy_group') }}</span>
+        <button
+          v-if="wyUserId"
+          :class="$style.groupAction"
+          :aria-label="$t('my_list__wy_refresh')"
+          @click.stop="handleRefreshWyLists"
+        >
+          <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" viewBox="0 0 24 24" space="preserve">
+            <use xlink:href="#icon-refresh" />
+          </svg>
+        </button>
+      </li>
+      <li
+        v-if="!wyUserId"
+        class="default-list"
+        :class="[$style.listsItem, $style.statusItem]"
+        @click="handleOpenWySetting"
+      >
+        <span :class="$style.listsLabel">{{ $t('my_list__wy_not_configured') }}</span>
+      </li>
+      <li v-else-if="wyListStatus == 'loading'" class="default-list" :class="[$style.listsItem, $style.statusItem]">
+        <span :class="$style.listsLabel">{{ $t('list__loading') }}</span>
+      </li>
+      <li
+        v-else-if="wyListStatus == 'error'"
+        class="default-list"
+        :class="[$style.listsItem, $style.statusItem]"
+        @click="handleRefreshWyLists"
+      >
+        <span :class="$style.listsLabel">{{ $t('my_list__wy_load_failed') }}</span>
+      </li>
+      <template v-else>
+        <li
+          v-for="item in wyLists"
+          :key="item.id"
+          class="default-list"
+          :class="[$style.listsItem, $style.remoteItem, {[$style.active]: item.id == remoteBoardId}, {[$style.fetching]: remoteOpeningId == item.id}]"
+          :aria-label="item.name"
+          :aria-selected="item.id == remoteBoardId"
+          @click="handleRemoteListToggle(item)"
+          @contextmenu="handleRemoteListRightClick($event, item)"
+        >
+          <span :class="$style.listsLabel">
+            <transition name="list-active">
+              <svg-icon v-if="item.id == remoteBoardId" name="angle-right-solid" :class="$style.activeIcon" />
+            </transition>
+            {{ item.name }}
+            <span v-if="wyDirtyStatus[item.id]" :class="$style.dirtyStatus">●</span>
+          </span>
+        </li>
+      </template>
     </ul>
     <base-menu v-model="isShowMenu" :menus="menus" :xy="menuLocation" item-name="name" @menu-click="handleMenuClick" />
+    <base-menu v-model="isShowRemoteMenu" :menus="remoteMenus" :xy="remoteMenuLocation" item-name="name" @menu-click="handleRemoteMenuClick" />
     <DuplicateMusicModal v-model:visible="isShowDuplicateMusicModal" :list-info="duplicateListInfo" />
     <ListSortModal v-model:visible="isShowListSortModal" :list-info="sortListInfo" />
     <ListUpdateModal v-model:visible="isShowListUpdateModal" />
@@ -88,8 +142,20 @@ import ListUpdateModal from './components/ListUpdateModal.vue'
 
 import { defaultList, loveList, userLists, fetchingListStatus } from '@renderer/store/list/state'
 import { removeUserList } from '@renderer/store/list/action'
+import { getBoardsList } from '@renderer/store/leaderboard/action'
+import {
+  ensureWyRemoteDraft,
+  findWyRemoteDraft,
+  getWyRemoteId,
+  isWyRemoteDraftDirty,
+  refreshWyRemoteDraft,
+  saveWyRemoteDraftAsLocal,
+  syncWyRemoteDraft,
+} from '@renderer/store/list/wyRemoteDraft'
+import { playList } from '@renderer/core/player/action'
+import { appSetting } from '@renderer/store/setting'
 
-import { ref, watch } from '@common/utils/vueTools'
+import { computed, nextTick, onBeforeUnmount, reactive, ref, watch } from '@common/utils/vueTools'
 import { useRouter } from '@common/utils/vueRouter'
 import { LIST_IDS } from '@common/constants'
 
@@ -119,16 +185,67 @@ export default {
   props: {
     listId: {
       type: String,
-      required: true,
+      default: '',
+    },
+    remoteBoardId: {
+      type: String,
+      default: '',
     },
   },
-  emits: ['show-menu'],
+  emits: ['show-menu', 'remote-state'],
   setup(props, { emit }) {
     const router = useRouter()
     const t = useI18n()
 
     const dom_lists_list = ref(null)
     const rightClickItemIndex = ref(-10)
+    const wyLists = ref([])
+    const wyListStatus = ref('idle')
+    const wyUserId = computed(() => appSetting['common.wyUserId'].trim())
+    const wyDirtyStatus = reactive({})
+    const remoteOpeningId = ref('')
+    const remoteMenuItem = ref(null)
+    const remoteMenuLocation = reactive({ x: 0, y: 0 })
+    const isShowRemoteMenu = ref(false)
+    const remoteTargetList = computed(() => remoteMenuItem.value ? findWyRemoteDraft(remoteMenuItem.value.id) : null)
+    const remoteMenuDirty = computed(() => remoteMenuItem.value ? !!wyDirtyStatus[remoteMenuItem.value.id] : false)
+    const remoteIds = computed(() => new Set(wyLists.value.map(item => getWyRemoteId(item.id))))
+    const isRemoteDraftList = list => {
+      if (list.id.startsWith('wy_remote_')) return true
+      if (list.source == 'wy' && list.sourceListId && remoteIds.value.has(list.sourceListId.replace(/^wy__/, ''))) return true
+      return list.source == 'mkr' && !!list.sourceListId?.startsWith('board__mkr__')
+    }
+    const localUserListEntries = computed(() => userLists
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => !isRemoteDraftList(item)))
+    const localUserLists = computed(() => localUserListEntries.value.map(({ item }) => item))
+    const remoteMenus = computed(() => [
+      {
+        name: t('list__play'),
+        action: 'play',
+        disabled: false,
+      },
+      {
+        name: t('my_list__wy_refresh_current'),
+        action: 'refresh',
+        disabled: remoteMenuDirty.value,
+      },
+      {
+        name: t('my_list__wy_discard_changes'),
+        action: 'discard',
+        disabled: !remoteMenuDirty.value,
+      },
+      {
+        name: t('lists__sync_to_cloud'),
+        action: 'sync_to_cloud',
+        disabled: !remoteTargetList.value || !remoteMenuDirty.value,
+      },
+      {
+        name: t('my_list__wy_save_as_local'),
+        action: 'save_as_local',
+        disabled: false,
+      },
+    ])
 
     const { handleImportList, handleExportList } = useShare()
     const { isShowListUpdateModal, handleUpdateSourceList } = useListUpdate()
@@ -184,6 +301,7 @@ export default {
     })
 
     const handleListsItemRigthClick = (event, index) => {
+      isShowRemoteMenu.value = false
       rightClickItemIndex.value = index
       showMenu(event, index)
     }
@@ -196,22 +314,190 @@ export default {
       }).catch(_ => _)
     }
 
+    const getWyListItem = (boardId) => {
+      for (const item of wyLists.value) {
+        if (item.id == boardId) return item
+      }
+      const targetList = boardId ? findWyRemoteDraft(boardId) : null
+      return targetList ? { id: boardId, name: targetList.name } : null
+    }
+    const emitRemoteState = () => {
+      const item = getWyListItem(props.remoteBoardId)
+      emit('remote-state', {
+        boardId: props.remoteBoardId,
+        name: item?.name ?? '',
+        dirty: props.remoteBoardId ? !!wyDirtyStatus[props.remoteBoardId] : false,
+      })
+    }
+    const updateRemoteDirtyStatus = async(boardId) => {
+      wyDirtyStatus[boardId] = await isWyRemoteDraftDirty(boardId)
+      if (boardId == props.remoteBoardId) emitRemoteState()
+    }
+    const loadWyLists = async() => {
+      if (!wyUserId.value) {
+        wyLists.value = []
+        wyListStatus.value = 'idle'
+        emitRemoteState()
+        return
+      }
+      wyListStatus.value = 'loading'
+      try {
+        const result = await getBoardsList('mkr')
+        wyLists.value = result.list
+        wyListStatus.value = 'loaded'
+        await Promise.all(wyLists.value.map(async item => updateRemoteDirtyStatus(item.id)))
+        emitRemoteState()
+      } catch (error) {
+        console.error('[WY User List] Failed to load playlists:', error)
+        wyLists.value = []
+        wyListStatus.value = 'error'
+      }
+    }
+    const handleRefreshWyLists = () => {
+      void loadWyLists()
+    }
+    const handleRemoteListToggle = async(item) => {
+      if (remoteOpeningId.value) return
+      remoteOpeningId.value = item.id
+      try {
+        const targetList = await ensureWyRemoteDraft(item.id, item.name)
+        await updateRemoteDirtyStatus(item.id)
+        if (targetList.id == props.listId && item.id == props.remoteBoardId) return
+        void router.replace({
+          path: '/list',
+          query: { id: targetList.id, source: 'mkr', boardId: item.id, remoteEdit: 'true' },
+        })
+      } finally {
+        remoteOpeningId.value = ''
+      }
+    }
+    const handleOpenWySetting = () => {
+      void router.push({ path: '/setting' })
+    }
+
+    const handleRemoteListRightClick = (event, item) => {
+      isShowMenu.value = false
+      rightClickItemIndex.value = -10
+      remoteMenuItem.value = item
+      remoteMenuLocation.x = event.pageX
+      remoteMenuLocation.y = event.pageY
+      emit('show-menu')
+      void nextTick(() => {
+        isShowRemoteMenu.value = true
+      })
+    }
+
+    const refreshRemoteItem = async(item, confirmDiscard = false) => {
+      if (confirmDiscard) {
+        const confirm = await dialog.confirm({
+          message: t('my_list__wy_discard_confirm', { name: item.name }),
+          confirmButtonText: t('confirm_button_text'),
+        })
+        if (!confirm) return
+      }
+      const targetList = await refreshWyRemoteDraft(item.id, item.name)
+      await updateRemoteDirtyStatus(item.id)
+      if (props.listId != targetList.id || props.remoteBoardId != item.id) {
+        void router.replace({
+          path: '/list',
+          query: { id: targetList.id, source: 'mkr', boardId: item.id, remoteEdit: 'true' },
+        })
+      }
+    }
+
+    const syncRemoteItem = async(item) => {
+      const targetList = findWyRemoteDraft(item.id)
+      if (!targetList) return
+      const confirm = await dialog.confirm({
+        message: t('my_list__wy_sync_to_cloud_confirm', { name: targetList.name }),
+        confirmButtonText: t('confirm_button_text'),
+      })
+      if (!confirm) return
+      await syncWyRemoteDraft(item.id)
+      await updateRemoteDirtyStatus(item.id)
+    }
+
+    const handleSyncRemote = async(boardId = props.remoteBoardId) => {
+      const item = getWyListItem(boardId)
+      if (item) await syncRemoteItem(item)
+    }
+
+    const handleRefreshRemote = async(boardId = props.remoteBoardId) => {
+      const item = getWyListItem(boardId)
+      if (!item) return
+      await refreshRemoteItem(item, !!wyDirtyStatus[item.id])
+    }
+
+    const handleRemoteMenuClick = async(action) => {
+      isShowRemoteMenu.value = false
+      if (!action || !remoteMenuItem.value) return
+      const item = remoteMenuItem.value
+      switch (action.action) {
+        case 'play': {
+          const targetList = await ensureWyRemoteDraft(item.id, item.name)
+          playList(targetList.id, 0)
+          break
+        }
+        case 'refresh':
+          await refreshRemoteItem(item)
+          break
+        case 'discard':
+          await refreshRemoteItem(item, true)
+          break
+        case 'sync_to_cloud':
+          await syncRemoteItem(item)
+          break
+        case 'save_as_local':
+          await ensureWyRemoteDraft(item.id, item.name)
+          await saveWyRemoteDraftAsLocal(item.id, t('my_list__wy_local_copy_name', { name: item.name }))
+          break
+      }
+    }
+
     const handleMenuClick = (action) => {
       if (rightClickItemIndex.value < -2) return
       let index = rightClickItemIndex.value
       rightClickItemIndex.value = -10
       menuClick(action, index)
     }
+    const hideMenus = () => {
+      isShowMenu.value = false
+      isShowRemoteMenu.value = false
+      rightClickItemIndex.value = -10
+    }
 
-    const { isModDown } = useDarg({ dom_lists_list, handleMenuClick, handleSaveListName })
+    const { isModDown } = useDarg({ dom_lists_list, handleMenuClick, handleSaveListName, visibleUserLists: localUserLists })
+
+    const handleMyListUpdate = (ids) => {
+      let isUpdatedCurrent = false
+      for (const item of wyLists.value) {
+        const targetList = findWyRemoteDraft(item.id)
+        if (!targetList || !ids.includes(targetList.id)) continue
+        if (item.id == props.remoteBoardId) isUpdatedCurrent = true
+        void updateRemoteDirtyStatus(item.id)
+      }
+      const currentList = props.remoteBoardId ? findWyRemoteDraft(props.remoteBoardId) : null
+      if (!isUpdatedCurrent && currentList && ids.includes(currentList.id)) void updateRemoteDirtyStatus(props.remoteBoardId)
+    }
+    window.app_event.on('myListUpdate', handleMyListUpdate)
 
 
     watch(() => props.listId, (listId) => {
+      if (!listId || props.remoteBoardId) return
       saveListPrevSelectId(listId)
     })
 
+    watch(wyUserId, () => {
+      void loadWyLists()
+    }, { immediate: true })
+
+    watch(() => props.remoteBoardId, (boardId) => {
+      if (boardId && findWyRemoteDraft(boardId)) void updateRemoteDirtyStatus(boardId)
+      else emitRemoteState()
+    })
+
     watch(() => userLists, (lists) => {
-      if (lists.some(l => l.id == props.listId)) return
+      if (props.remoteBoardId || props.listId == defaultList.id || props.listId == loveList.id || lists.some(l => l.id == props.listId)) return
       void router.replace({
         path: '/list',
         query: {
@@ -220,11 +506,21 @@ export default {
       })
     })
 
+    onBeforeUnmount(() => {
+      window.app_event.off('myListUpdate', handleMyListUpdate)
+    })
+
     return {
       rightClickItemIndex,
       defaultList,
       loveList,
       userLists,
+      localUserListEntries,
+      wyLists,
+      wyUserId,
+      wyListStatus,
+      wyDirtyStatus,
+      remoteOpeningId,
       fetchingListStatus,
       dom_lists_list,
       isShowListUpdateModal,
@@ -241,9 +537,19 @@ export default {
       handleMenuClick,
       menus,
       menuLocation,
+      remoteMenus,
+      remoteMenuLocation,
+      isShowRemoteMenu,
       handleListToggle,
+      handleRefreshWyLists,
+      handleRemoteListToggle,
+      handleRemoteListRightClick,
+      handleRemoteMenuClick,
+      handleSyncRemote,
+      handleRefreshRemote,
+      handleOpenWySetting,
       isModDown,
-      hideMenu: handleMenuClick,
+      hideMenu: hideMenus,
     }
   },
 }
@@ -325,6 +631,48 @@ export default {
       }
     }
   }
+}
+.groupTitle {
+  min-height: 30px;
+  padding: 8px 10px 3px;
+  box-sizing: border-box;
+  color: var(--color-font-label);
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.groupAction {
+  width: 22px;
+  height: 22px;
+  padding: 4px;
+  border: 0;
+  background: none;
+  color: inherit;
+  opacity: .55;
+  cursor: pointer;
+  transition: opacity @transition-fast;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  &:hover {
+    opacity: 1;
+  }
+}
+.remoteItem .listsLabel {
+  padding-left: 18px;
+}
+.dirtyStatus {
+  margin-left: 5px;
+  color: var(--color-primary);
+  font-size: 10px;
+}
+.statusItem {
+  color: var(--color-font-label);
+  font-size: 12px;
 }
 .listsItem {
   position: relative;

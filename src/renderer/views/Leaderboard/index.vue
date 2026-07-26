@@ -41,6 +41,13 @@ const verifyQueryParams = async function(to, from, next) {
     })
     return
   }
+  if (!sources.includes(_source)) {
+    next({
+      path: to.path,
+      query: { ...to.query, source: sources[0], boardId: undefined },
+    })
+    return
+  }
   next()
   source.value = _source
   boardId.value = _boardId

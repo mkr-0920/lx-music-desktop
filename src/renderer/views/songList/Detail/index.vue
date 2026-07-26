@@ -2,8 +2,7 @@
   <div :class="$style.container">
     <div :class="$style.songListHeader">
       <div :class="$style.songListHeaderLeft" :style="{ backgroundImage: 'url('+(picUrl || listDetailInfo.info.img)+')' }">
-        <!-- <span v-if="listDetailInfo.info.play_count" :class="$style.playNum">{{ listDetailInfo.info.play_count }}</span> -->
-      </div>
+        </div>
       <div :class="$style.songListHeaderMiddle">
         <h3 :title="listDetailInfo.info.name">{{ listDetailInfo.info.name }}</h3>
         <p :title="listDetailInfo.info.desc">{{ listDetailInfo.info.desc }}</p>
@@ -12,14 +11,14 @@
         <base-btn
           :class="$style.headerRightBtn"
           :disabled="!!listDetailInfo.noItemLabel"
-          @click="playSongListDetail(listDetailInfo.id, listDetailInfo.source, listDetailInfo.list)"
+          @click="handlePlayAll"
         >
           {{ $t('list__play') }}
         </base-btn>
         <base-btn
           :class="$style.headerRightBtn"
           :disabled="!!listDetailInfo.noItemLabel"
-          @click="addSongListDetail(listDetailInfo.id, listDetailInfo.source, listDetailInfo.info.name)"
+          @click="handleCollect"
         >
           {{ $t('list__collect') }}
         </base-btn>
@@ -45,7 +44,8 @@
 import { ref, watch } from '@common/utils/vueTools'
 import { listDetailInfo } from '@renderer/store/songList/state'
 import { setVisibleListDetail } from '@renderer/store/songList/action'
-import { useRouter } from '@common/utils/vueRouter'
+// 【引入 useRoute】用来判断当前是不是专辑页
+import { useRouter, useRoute } from '@common/utils/vueRouter'
 import { addSongListDetail, playSongListDetail } from './action'
 import useList from './useList'
 import useKeyBack from './useKeyBack'
@@ -108,6 +108,7 @@ export default {
   beforeRouteUpdate: verifyQueryParams,
   setup() {
     const router = useRouter()
+    const route = useRoute() // 获取当前路由信息
 
     const {
       listRef,
@@ -129,13 +130,18 @@ export default {
 
     useKeyBack(handleBack)
 
+    // 【新增】：代理播放全部按钮的点击，把 isAlbum 标识传给 action
+    const handlePlayAll = () => {
+      void playSongListDetail(listDetailInfo.id, listDetailInfo.source, listDetailInfo.list, 0, route.query.type === 'album')
+    }
+
+    // 【新增】：代理收藏按钮的点击，把 isAlbum 标识传给 action
+    const handleCollect = () => {
+      void addSongListDetail(listDetailInfo.id, listDetailInfo.source, listDetailInfo.info.name, route.query.type === 'album')
+    }
+
     watch([source, id, page, refresh], async([_source, _id, _page, _refresh]) => {
       if (!_source || !_id) return router.replace({ path: '/songList/list' })
-      // console.log(_source, _id, _page, _refresh, picUrl.value)
-      // source.value = _source
-      // id.value = _id
-      // refresh.value = _refresh
-      // page.value = _page ?? 1
       void getListData(_source, _id, _page, _refresh)
     }, {
       immediate: true,
@@ -149,8 +155,8 @@ export default {
       listDetailInfo,
       listRef,
       togglePage,
-      addSongListDetail,
-      playSongListDetail,
+      handlePlayAll,
+      handleCollect,
       handlePlayList,
       handleBack,
     }
@@ -162,11 +168,6 @@ export default {
 @import '@renderer/assets/styles/layout.less';
 
 .container {
-  // position: absolute;
-  // left: 0;
-  // top: 0;
-  // width: 100%;
-  // height: 100%;
   display: flex;
   flex-flow: column nowrap;
 }
@@ -247,4 +248,3 @@ export default {
   height: 100%;
 }
 </style>
-

@@ -21,6 +21,7 @@
 import { watch, ref, onBeforeUnmount } from '@common/utils/vueTools'
 import { defaultList, loveList, userLists } from '@renderer/store/list/state'
 import { addListMusics, moveListMusics, createUserList, getMusicExistListIds } from '@renderer/store/list/action'
+import { findWyRemoteDraft, getWyRemoteTargets, resolveWyRemoteTarget } from '@renderer/store/list/wyRemoteDraft'
 import useKeyDown from '@renderer/utils/compositions/useKeyDown'
 import { useI18n } from '@root/lang'
 import { dialog } from '@renderer/plugins/Dialog'
@@ -82,13 +83,38 @@ export default {
 
     let stopWatchUserList = null
 
-    const getList = () => {
+    let remoteTargets = []
+    const updateLists = () => {
+      const resolvedRemoteTargets = remoteTargets.map(item => ({
+        ...item,
+        id: findWyRemoteDraft(item.remoteBoardId)?.id ?? item.id,
+      }))
+      const remoteTargetIds = new Set(resolvedRemoteTargets.map(item => item.id))
       lists.value = [
         { ...defaultList, name: t(defaultList.name) },
         { ...loveList, name: t(loveList.name) },
-        ...userLists,
+        ...userLists.filter(list => (
+          !list.id.startsWith('wy_remote_') &&
+          !remoteTargetIds.has(list.id) &&
+          !(list.source == 'mkr' && list.sourceListId?.startsWith('board__mkr__'))
+        )),
+        ...resolvedRemoteTargets.map(item => ({ ...item, name: `${t('my_list__wy_group')} · ${item.name}` })),
       ].filter(l => !props.excludeListId.includes(l.id)).map(l => ({ ...l, isExist: false }))
       checkMusicExist(currentMusicInfo.value)
+    }
+    const getList = async(isReloadRemote = false) => {
+      if (!isReloadRemote) {
+        updateLists()
+        return
+      }
+      remoteTargets = []
+      updateLists()
+      try {
+        remoteTargets = await getWyRemoteTargets()
+      } catch (error) {
+        console.error('[List Add] Failed to load NetEase playlists:', error)
+      }
+      updateLists()
     }
 
     watch(() => props.show, show => {
@@ -103,9 +129,11 @@ export default {
 
       currentMusicInfo.value = 'progress' in props.musicInfo ? props.musicInfo.metadata.musicInfo : props.musicInfo
 
-      getList()
+      void getList(true)
 
-      stopWatchUserList = watch(userLists, getList)
+      stopWatchUserList = watch(userLists, () => {
+        void getList()
+      })
     })
 
     onBeforeUnmount(() => {
@@ -150,9 +178,15 @@ export default {
           ? 4
           : width < 3840 ? 5 : 6
     },
-    handleClick(index) {
-      if (this.isMove) void moveListMusics(this.fromListId, this.lists[index].id, [this.currentMusicInfo])
-      else void addListMusics(this.lists[index].id, [this.currentMusicInfo])
+    async handleClick(index) {
+      const target = this.lists[index]
+      let targetId = target.id
+      if (target.remoteBoardId) {
+        const targetList = await resolveWyRemoteTarget(target)
+        targetId = target.id = targetList.id
+      }
+      if (this.isMove) await moveListMusics(this.fromListId, targetId, [this.currentMusicInfo])
+      else await addListMusics(targetId, [this.currentMusicInfo])
 
       this.lists[index].isExist = true
       if (this.keyModDown && !this.isMove) return

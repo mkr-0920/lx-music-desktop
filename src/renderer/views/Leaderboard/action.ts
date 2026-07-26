@@ -3,6 +3,7 @@ import { dialog } from '@renderer/plugins/Dialog'
 import syncSourceList from '@renderer/store/list/syncSourceList'
 import { getListDetail, getListDetailAll } from '@renderer/store/leaderboard/action'
 import { createUserList, setTempList } from '@renderer/store/list/action'
+import { ensureWyRemoteDraft } from '@renderer/store/list/wyRemoteDraft'
 import { playList } from '@renderer/core/player/action'
 import { LIST_IDS } from '@common/constants'
 import { toMD5 } from '@renderer/utils'
@@ -12,6 +13,10 @@ const getListId = (id: string) => `board__${id}`
 export const addSongListDetail = async(id: string, name: string, source: LX.OnlineSource) => {
   // console.log(this.listDetail.info)
   // if (!this.listDetail.info.name) return
+  if (source == 'mkr') {
+    await ensureWyRemoteDraft(id, name)
+    return
+  }
   const listId = getListId(id)
   const targetList = userLists.find(l => l.sourceListId == listId)
   if (targetList) {

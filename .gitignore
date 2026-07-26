@@ -73,3 +73,5 @@ publish/utils/githubToken.js
 src/**/*-internal.js
 
 src/renderer/utils/musicSdk/mkr/config.js
+
+.rooignore

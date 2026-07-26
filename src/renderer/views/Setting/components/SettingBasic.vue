@@ -68,7 +68,7 @@ dd
       )
 
     .gap-top.gap-left
-      span(style="font-size: 12px; opacity: 0.6") * 获取日推歌单和私人FM需要填写 Cookie，UID 仅用于获取公开歌单。
+      span(style="font-size: 12px; opacity: 0.6") * 获取日推歌单和私人FM需要填写 Cookies，UID 仅用于获取公开歌单。
 
 dd
   h3#basic_window_size {{ $t('setting__basic_window_size') }}

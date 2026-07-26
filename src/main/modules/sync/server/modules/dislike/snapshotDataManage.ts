@@ -5,6 +5,7 @@ import syncLog from '../../../log'
 import { getUserConfig, type UserDataManage } from '../../user/data'
 import { File } from '../../../../../../common/constants_sync'
 import { checkAndCreateDirSync } from '../../utils'
+import { readJsonFileWithBackupSync, writeJsonFileAtomicSync } from '../../utils/jsonFile'
 
 
 interface SnapshotInfo {
@@ -19,11 +20,10 @@ export class SnapshotDataManage {
   snapshotDir: string
   snapshotInfoFilePath: string
   snapshotInfo: SnapshotInfo
-  clientSnapshotKeys: string[]
   private readonly saveSnapshotInfoThrottle: () => void
 
   isIncluedsDevice = (key: string) => {
-    return this.clientSnapshotKeys.includes(key)
+    return Object.values(this.snapshotInfo.clients).some(device => device.snapshotKey == key)
   }
 
   clearOldSnapshot = async() => {
@@ -46,10 +46,8 @@ export class SnapshotDataManage {
     // console.log('updateDeviceSnapshotKey', key)
     let client = this.snapshotInfo.clients[clientId]
     if (!client) client = this.snapshotInfo.clients[clientId] = { snapshotKey: '', lastSyncDate: 0 }
-    if (client.snapshotKey) this.clientSnapshotKeys.splice(this.clientSnapshotKeys.indexOf(client.snapshotKey), 1)
     client.snapshotKey = key
     client.lastSyncDate = Date.now()
-    this.clientSnapshotKeys.push(key)
     this.saveSnapshotInfoThrottle()
   }
 
@@ -71,7 +69,6 @@ export class SnapshotDataManage {
   removeSnapshotInfo = (clientId: string) => {
     let client = this.snapshotInfo.clients[clientId]
     if (!client) return
-    if (client.snapshotKey) this.clientSnapshotKeys.splice(this.clientSnapshotKeys.indexOf(client.snapshotKey), 1)
     // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
     delete this.snapshotInfo.clients[clientId]
     this.saveSnapshotInfoThrottle()
@@ -121,18 +118,16 @@ export class SnapshotDataManage {
     checkAndCreateDirSync(this.snapshotDir)
 
     this.snapshotInfoFilePath = path.join(this.dislikeDir, File.dislikeSnapshotInfoJSON)
-    this.snapshotInfo = fs.existsSync(this.snapshotInfoFilePath)
-      ? JSON.parse(fs.readFileSync(this.snapshotInfoFilePath).toString())
-      : { latest: null, time: 0, list: [], clients: {} }
+    this.snapshotInfo = readJsonFileWithBackupSync<SnapshotInfo>(this.snapshotInfoFilePath, () => ({ latest: null, time: 0, list: [], clients: {} }))
 
     this.saveSnapshotInfoThrottle = throttle(() => {
-      fs.writeFile(this.snapshotInfoFilePath, JSON.stringify(this.snapshotInfo), 'utf8', (err) => {
-        if (err) console.error(err)
+      try {
+        writeJsonFileAtomicSync(this.snapshotInfoFilePath, this.snapshotInfo)
         void this.clearOldSnapshot()
-      })
+      } catch (err) {
+        syncLog.error(err)
+      }
     })
-
-    this.clientSnapshotKeys = Object.values(this.snapshotInfo.clients).map(device => device.snapshotKey).filter(k => k)
   }
 }
 // type UserDataManages = Map<string, UserDataManage>

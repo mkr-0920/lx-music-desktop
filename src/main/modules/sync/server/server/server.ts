@@ -80,13 +80,15 @@ const handleConnection = async(socket: LX.Sync.Server.Socket, request: IncomingM
   } catch (err) {
     // console.log(err)
     log.warn(err)
+    socket.close(err instanceof Error && err.message == 'cancel' ? SYNC_CLOSE_CODE.normal : SYNC_CLOSE_CODE.failed)
     return
   }
   status.devices.push(keyInfo)
   // handleConnection(io, socket)
   sendServerStatus(status)
   socket.onClose(() => {
-    status.devices.splice(status.devices.findIndex(k => k.clientId == keyInfo.clientId), 1)
+    const index = status.devices.findIndex(k => k.clientId == keyInfo.clientId)
+    if (index >= 0) status.devices.splice(index, 1)
     sendServerStatus(status)
   })
 
@@ -241,7 +243,9 @@ const handleStartServer = async(port = 9527, ip = '0.0.0.0') => await new Promis
     socket.onClose = function(handler: typeof closeEvents[number]) {
       closeEvents.push(handler)
       return () => {
-        closeEvents.splice(closeEvents.indexOf(handler), 1)
+        const index = closeEvents.indexOf(handler)
+        if (index < 0) return
+        closeEvents.splice(index, 1)
       }
     }
     socket.broadcast = function(handler) {

@@ -46,6 +46,7 @@ export const getUserSpace = (userName = 'default') => {
       },
       async removeDevice(clientId) {
         await listManage.removeDevice(clientId)
+        await dislikeManage.removeDevice(clientId)
         await dataManage.removeClientKeyInfo(clientId)
       },
     })

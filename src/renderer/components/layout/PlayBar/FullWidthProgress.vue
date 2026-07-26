@@ -8,8 +8,11 @@
       <div v-else :class="$style.emptyPic">L<span>X</span></div>
     </div>
     <div :class="$style.infoContent">
-      <div :class="$style.title" :aria-label="title + $t('copy_tip')" @click="handleCopy(title)">
-        {{ title }}
+      <div :class="$style.titleRow">
+        <div :class="$style.title" :aria-label="title + $t('copy_tip')" @click="handleCopy(title)">
+          {{ title }}
+        </div>
+        <play-source-badge />
       </div>
       <div :class="$style.status">{{ statusText }}</div>
     </div>
@@ -48,6 +51,7 @@ import { computed } from '@common/utils/vueTools'
 import { useRouter } from '@common/utils/vueRouter'
 import { clipboardWriteText } from '@common/utils/electron'
 import ControlBtns from './ControlBtns.vue'
+import PlaySourceBadge from './PlaySourceBadge.vue'
 // import PlayProgress from './PlayProgress'
 import usePlayProgress from '@renderer/utils/compositions/usePlayProgress'
 // import { lyric } from '@renderer/core/share/lyric'
@@ -71,6 +75,7 @@ export default {
   name: 'CorePlayBar',
   components: {
     ControlBtns,
+    PlaySourceBadge,
     // PlayProgress,
   },
   setup() {
@@ -253,7 +258,14 @@ export default {
   line-height: 1.5;
 }
 
+.titleRow {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
 .title {
+  min-width: 0;
   max-width: 100%;
   font-size: 12px;
   color: var(--color-font-label);

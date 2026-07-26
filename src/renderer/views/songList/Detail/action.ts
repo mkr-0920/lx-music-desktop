@@ -6,12 +6,14 @@ import { createUserList, setTempList } from '@renderer/store/list/action'
 import { playList } from '@renderer/core/player/action'
 import { LIST_IDS } from '@common/constants'
 import { toMD5 } from '@renderer/utils'
+import music from '@renderer/utils/musicSdk'
+
+// 把清洗工具也引入进来
+import { toNewMusicInfo } from '@common/utils/tools'
 
 const getListId = (id: string, source: LX.OnlineSource) => `${source}__${id}`
 
-export const addSongListDetail = async(id: string, source: LX.OnlineSource, name?: string) => {
-  // console.log(this.listDetail.info)
-  // if (!this.listDetail.info.name) return
+export const addSongListDetail = async(id: string, source: LX.OnlineSource, name?: string, isAlbum: boolean = false) => {
   const listId = getListId(id, source)
   const targetList = userLists.find(l => l.sourceListId == listId)
   if (targetList) {
@@ -25,7 +27,17 @@ export const addSongListDetail = async(id: string, source: LX.OnlineSource, name
     return
   }
 
-  const list = await getListDetailAll(id, source)
+  let list
+  if (isAlbum) {
+    const albumReq = (music as any)[source]?.album?.getAlbumDetail
+    if (!albumReq) throw new Error('Album not supported in source: ' + source)
+    const detail = await albumReq(id)
+    // 收藏时，必须把专辑歌曲洗成 V2 格式再入库！
+    list = detail.list.map((m: any) => toNewMusicInfo(m))
+  } else {
+    list = await getListDetailAll(id, source)
+  }
+
   await createUserList({
     name,
     id: `${source}_${toMD5(listId)}`,
@@ -35,18 +47,39 @@ export const addSongListDetail = async(id: string, source: LX.OnlineSource, name
   })
 }
 
-export const playSongListDetail = async(id: string, source: LX.OnlineSource, list?: LX.Music.MusicInfoOnline[], index: number = 0) => {
+export const playSongListDetail = async(id: string, source: LX.OnlineSource, list?: LX.Music.MusicInfoOnline[], index: number = 0, isAlbum: boolean = false) => {
   let isPlayingList = false
-  // console.log(list)
   const listId = getListId(id, source)
-  if (!list?.length) list = (await getListDetail(id, source, 1)).list
+
+  if (!list?.length) {
+    if (isAlbum) {
+      const albumReq = (music as any)[source]?.album?.getAlbumDetail
+      if (!albumReq) throw new Error('Album not supported in source: ' + source)
+      const detail = await albumReq(id)
+      // 兜底获取第一页时，也要洗数据
+      list = detail.list.map((m: any) => toNewMusicInfo(m))
+    } else {
+      list = (await getListDetail(id, source, 1)).list
+    }
+  }
+
   if (list?.length) {
     await setTempList(listId, [...list])
     playList(LIST_IDS.TEMP, index)
     isPlayingList = true
   }
-  const fullList = await getListDetailAll(id, source)
+
+  let fullList
+  if (isAlbum) {
+    const albumReq = (music as any)[source]?.album?.getAlbumDetail
+    const detail = await albumReq(id)
+    fullList = detail.list.map((m: any) => toNewMusicInfo(m))
+  } else {
+    fullList = await getListDetailAll(id, source)
+  }
+
   if (!fullList.length) return
+
   if (isPlayingList) {
     if (tempListMeta.id == listId) {
       await setTempList(listId, [...fullList])

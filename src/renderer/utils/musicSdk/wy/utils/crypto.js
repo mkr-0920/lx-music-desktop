@@ -65,3 +65,19 @@ export const eapiDecrypt = (encryptedTextHex) => {
     return '{"code": 500, "message": "Decryption failed"}' // 返回错误 JSON
   }
 }
+
+const CACHE_KEY_AES_KEY = ')(13daqP@ssw0rd~'
+
+export const generateCacheKey = (params) => {
+  // 1. 按键名首字符排序
+  const sortedKeys = Object.keys(params).sort((a, b) => a.charCodeAt(0) - b.charCodeAt(0))
+  // 2. 拼接 query_string
+  const queryString = sortedKeys.map(k => `${k}=${params[k]}`).join('&')
+
+  // 3. AES-128-ECB 加密 (PKCS7 padding 是 Node crypto 的默认行为)
+  const cipher = createCipheriv('aes-128-ecb', Buffer.from(CACHE_KEY_AES_KEY), '')
+  let encrypted = cipher.update(queryString, 'utf8', 'base64')
+  encrypted += cipher.final('base64')
+
+  return encrypted
+}

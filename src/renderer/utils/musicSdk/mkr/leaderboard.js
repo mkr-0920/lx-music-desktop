@@ -84,12 +84,13 @@ export default {
    * 获取用户歌单列表
    */
   getBoards: async() => {
+    const uid = String(appSetting['common.wyUserId'])
     const requestObj = eapiRequest(
       '/api/user/playlist/',
       {
         offset: '0',
         limit: '1000',
-        uid: String(appSetting['common.wyUserId']),
+        uid,
         e_r: true,
       },
       'mobile',

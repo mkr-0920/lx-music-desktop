@@ -5,6 +5,7 @@ import {
   isPlay,
   status,
   statusText,
+  playbackSource,
   isShowPlayerDetail,
   isShowPlayComment,
   isShowLrcSelectContent,
@@ -12,6 +13,8 @@ import {
   playMusicInfo,
   playedList,
   tempPlayList,
+  playQueue,
+  playQueueIndex,
 } from './state'
 import { getListMusicsFromCache } from '@renderer/store/list/action'
 import { downloadList } from '@renderer/store/download/state'
@@ -19,7 +22,6 @@ import { setProgress } from './playProgress'
 import { playNext } from '@renderer/core/player'
 import { LIST_IDS } from '@common/constants'
 import { toRaw } from '@common/utils/vueTools'
-import { arrPush, arrUnshift } from '@common/utils/common'
 
 
 type PlayerMusicInfoKeys = keyof typeof musicInfo
@@ -54,6 +56,10 @@ export const setAllStatus = (val: string) => {
   console.log('setAllStatus', val)
   status.value = val
   statusText.value = val
+}
+
+export const setPlaybackSource = (source: LX.Source | null) => {
+  playbackSource.value = source
 }
 
 
@@ -176,6 +182,9 @@ const setPlayerMusicInfo = (musicInfo: LX.Music.MusicInfo | LX.Download.ListItem
 export const setPlayMusicInfo = (listId: string | null, musicInfo: LX.Download.ListItem | LX.Music.MusicInfo | null, isTempPlay: boolean = false) => {
   musicInfo = toRaw(musicInfo)
 
+  const sourceMusicInfo = musicInfo && ('progress' in musicInfo ? musicInfo.metadata.musicInfo : musicInfo)
+  setPlaybackSource(sourceMusicInfo?.meta.toggleMusicInfo?.source ?? sourceMusicInfo?.source ?? null)
+
   playMusicInfo.listId = listId
   playMusicInfo.musicInfo = musicInfo
   playMusicInfo.isTempPlay = isTempPlay
@@ -220,21 +229,75 @@ export const clearPlayedList = () => {
   playedList.splice(0, playedList.length)
 }
 
+let queueId = 0
+export const createPlayQueueItem = ({ musicInfo, listId, isTempPlay = false, origin = 'source', sourceIndex }: {
+  musicInfo: LX.Player.PlayMusicInfo['musicInfo']
+  listId: string | null
+  isTempPlay?: boolean
+  origin?: LX.Player.PlayQueueItemOrigin
+  sourceIndex?: number
+}): LX.Player.PlayQueueItem => ({
+  queueId: `queue_${Date.now()}_${queueId++}`,
+  musicInfo: toRaw(musicInfo),
+  listId,
+  isTempPlay,
+  origin,
+  sourceIndex,
+})
+
+export const replacePlayQueue = (list: LX.Player.PlayQueueItem[], index: number) => {
+  playQueue.splice(0, playQueue.length, ...list.map(item => toRaw(item)))
+  playQueueIndex.value = Math.min(Math.max(index, -1), playQueue.length - 1)
+}
+
+export const setPlayQueueIndex = (index: number) => {
+  playQueueIndex.value = index
+}
+
+export const movePlayQueueItem = (oldIndex: number, newIndex: number) => {
+  if (oldIndex <= playQueueIndex.value || newIndex <= playQueueIndex.value) return
+  const [item] = playQueue.splice(oldIndex, 1)
+  if (!item) return
+  playQueue.splice(newIndex, 0, item)
+}
+
+export const removePlayQueueItem = (index: number) => {
+  if (index <= playQueueIndex.value) return
+  playQueue.splice(index, 1)
+}
+
+export const clearPendingPlayQueue = () => {
+  if (playQueueIndex.value < 0) {
+    playQueue.splice(0, playQueue.length)
+    return
+  }
+  playQueue.splice(playQueueIndex.value + 1)
+}
+
 /**
  * 添加歌曲到稍后播放列表
  * @param list 歌曲列表
  */
 export const addTempPlayList = (list: LX.Player.TempPlayListItem[]) => {
-  const topList: Array<Omit<LX.Player.TempPlayListItem, 'top'>> = []
-  const bottomList = list.filter(({ isTop, ...musicInfo }) => {
-    if (isTop) {
-      topList.push(musicInfo)
-      return false
-    }
-    return true
-  })
-  if (topList.length) arrUnshift(tempPlayList, topList.map(({ musicInfo, listId }) => ({ musicInfo, listId, isTempPlay: true })))
-  if (bottomList.length) arrPush(tempPlayList, bottomList.map(({ musicInfo, listId }) => ({ musicInfo, listId, isTempPlay: true })))
+  const topList = list.filter(item => item.isTop).map(({ musicInfo, listId }) => createPlayQueueItem({
+    musicInfo,
+    listId,
+    isTempPlay: true,
+    origin: 'play_next',
+  }))
+  const bottomList = list.filter(item => !item.isTop).map(({ musicInfo, listId }) => createPlayQueueItem({
+    musicInfo,
+    listId,
+    isTempPlay: true,
+    origin: 'play_later',
+  }))
+
+  if (topList.length) playQueue.splice(playQueueIndex.value + 1, 0, ...topList)
+  if (bottomList.length) {
+    let insertIndex = playQueueIndex.value + 1
+    while (insertIndex < playQueue.length && playQueue[insertIndex].origin != 'source') insertIndex++
+    playQueue.splice(insertIndex, 0, ...bottomList)
+  }
 
   if (!playMusicInfo.musicInfo) void playNext()
 }

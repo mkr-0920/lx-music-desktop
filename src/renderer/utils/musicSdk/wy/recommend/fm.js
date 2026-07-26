@@ -1,52 +1,9 @@
-// [文件: src/renderer/utils/musicSdk/mkr/leaderboard_fm.js]
-
-import { eapiRequest } from '../wy/utils/index'
-// 导入通用解析器
-import { handleResult } from '../wy/utils/parser'
-// 导入配置以读取 Cookie
-import { appSetting } from '@renderer/store/setting'
-import { toast } from '@renderer/plugins/Tips'
-
-// 构造请求选项 (支持强制指定 OS，解决 FM 模式获取不到的问题)
-const getRequestOptions = (forceOs = null) => {
-  let wyCookie = appSetting['common.wyCookie']
-  if (!wyCookie) {
-    toast('请先在设置中填写网易云 Cookie')
-    return 'mobile'
-  }
-
-  if (forceOs) {
-    // 如果 Cookie 里已有 os=xxx，替换它
-    if (/os=[^;]+/.test(wyCookie)) {
-      wyCookie = wyCookie.replace(/os=[^;]+/, `os=${forceOs}`)
-    } else {
-      // 如果没有，追加它
-      wyCookie += `; os=${forceOs}`
-    }
-    // 确保还有 appver，有些接口需要配合 appver
-    if (!/appver=[^;]+/.test(wyCookie)) {
-      wyCookie += '; appver=9.9.9'
-    } else {
-      // 如果没有，追加它
-      wyCookie += '; appver=9.9.9'
-    }
-  }
-
-  return {
-    mobile: true,
-    headers: {
-      Cookie: wyCookie,
-    },
-  }
-}
+import { eapiRequest } from '../utils/index'
+import { handleResult } from '../utils/parser'
+import { getRequestOptions } from './utils'
 
 export default {
-  /**
-   * 获取 FM 模式列表 (左侧菜单)
-   * API: /api/link/position/show/resource
-   */
   getBoards: async() => {
-    // 构造 extJson
     const extJson = JSON.stringify({
       clientLibraAbTest: { 'fm-style-reopen': 't3', fmNameTest0422: 'c' },
       isHomePageNewFramework: true,
@@ -62,19 +19,13 @@ export default {
         header: '{}',
         e_r: true,
       },
-      // 这里必须传入 'android' 来伪装设备
       getRequestOptions('android'),
     )
 
-    // 发送请求
     const { body } = await request.promise
-
-    // 解析数据
     const dslData = body?.data?.crossPlatformResource?.dslData || {}
-
     const list = []
 
-    // 基础模式
     if (dslData.recommendModeList) {
       dslData.recommendModeList.forEach(mode => {
         list.push({
@@ -85,7 +36,6 @@ export default {
       })
     }
 
-    // 场景模式
     if (dslData.currentSceneList) {
       dslData.currentSceneList.forEach(scene => {
         list.push({
@@ -102,20 +52,12 @@ export default {
     }
   },
 
-  /**
-   * 获取歌曲列表
-   * API: /api/v1/radio/get
-   */
   getList: async(bangid, page) => {
-    // 获取歌曲建议也伪装成 Android，更加稳妥
     const options = getRequestOptions('android')
-
-    // 检查 Cookie
     if (!options.headers?.Cookie) {
       throw new Error('请先在设置中填写网易云 Cookie')
     }
 
-    // 解析参数
     let mode = bangid
     let subMode = null
 
@@ -127,9 +69,8 @@ export default {
       mode = bangid.replace('wy_fm__', '')
     }
 
-    // 准备循环
     const targetTotal = 30
-    let collectedList = []
+    const collectedList = []
     const maxRetry = 10
 
     const requestData = {
@@ -140,11 +81,8 @@ export default {
       header: '{}',
       e_r: true,
     }
-    if (subMode) {
-      requestData.subMode = subMode
-    }
+    if (subMode) requestData.subMode = subMode
 
-    // 开始串行循环
     for (let i = 0; i < maxRetry; i++) {
       if (collectedList.length >= targetTotal) break
 
@@ -156,19 +94,12 @@ export default {
         ).promise
 
         const rawData = response.body?.data
-
-        if (!rawData || rawData.length === 0) {
-          console.log('[WY FM] 接口没数据了，停止获取')
-          break
-        }
+        if (!rawData || rawData.length === 0) break
 
         const currentBatch = handleResult(rawData)
-
         currentBatch.forEach(song => {
           const exists = collectedList.some(s => s.songmid === song.songmid)
-          if (!exists) {
-            collectedList.push(song)
-          }
+          if (!exists) collectedList.push(song)
         })
 
         await new Promise(resolve => setTimeout(resolve, 200))

@@ -52,7 +52,12 @@ export default {
   },
   emits: ['update:visible'],
   setup() {
-    const lists = computed(() => userLists.filter(l => !!l.source && !!musicSdk[l.source]?.songList))
+    const lists = computed(() => userLists.filter(l => (
+      !l.id.startsWith('wy_remote_') &&
+      !(l.source == 'mkr' && l.sourceListId?.startsWith('board__mkr__')) &&
+      !!l.source &&
+      !!musicSdk[l.source]?.songList
+    )))
     const updateInfo = ref({})
     // const updateTimes = ref({})
 

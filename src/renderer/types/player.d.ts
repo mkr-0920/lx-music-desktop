@@ -16,6 +16,14 @@ declare namespace LX {
       isTempPlay: boolean
     }
 
+    type PlayQueueItemOrigin = 'source' | 'play_next' | 'play_later'
+
+    interface PlayQueueItem extends PlayMusicInfo {
+      queueId: string
+      origin: PlayQueueItemOrigin
+      sourceIndex?: number
+    }
+
     interface PlayInfo {
       /**
        * 当前正在播放歌曲 index

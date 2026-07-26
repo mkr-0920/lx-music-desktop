@@ -20,6 +20,16 @@ interface Lx {
     download: DownloadTypes
   }
   isProd: boolean
+  albumInfo: {
+    searchKey: string | null
+    searchPosition: number
+  }
+  artistDetailInfo: {
+    id: string
+    albums: any[]
+    sort: string
+    scrollPosition: number
+  }
   songListInfo: {
     fromName: string
     searchKey: string | null

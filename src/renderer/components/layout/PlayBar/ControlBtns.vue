@@ -16,19 +16,30 @@
     </button>
     <common-volume-btn />
     <common-toggle-play-mode-btn />
+    <button :class="$style.titleBtn" :aria-label="$t('player__queue_title')" @click="isShowQueue = !isShowQueue">
+      <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" width="100%" viewBox="0 0 32 32" space="preserve">
+        <use xlink:href="#icon-list-order" />
+      </svg>
+      <span v-if="pendingCount" :class="$style.queueCount">{{ pendingCount > 99 ? '99+' : pendingCount }}</span>
+    </button>
     <common-list-add-modal v-model:show="isShowAddMusicTo" :music-info="playMusicInfo.musicInfo" />
+    <play-queue-panel v-model:show="isShowQueue" />
   </div>
 </template>
 
 <script>
-import { ref } from '@common/utils/vueTools'
+import { computed, ref } from '@common/utils/vueTools'
 import useToggleDesktopLyric from '@renderer/utils/compositions/useToggleDesktopLyric'
-import { musicInfo, playMusicInfo } from '@renderer/store/player/state'
+import { musicInfo, playMusicInfo, playQueue, playQueueIndex } from '@renderer/store/player/state'
 import { appSetting } from '@renderer/store/setting'
+import PlayQueuePanel from './PlayQueuePanel.vue'
 
 export default {
+  components: { PlayQueuePanel },
   setup() {
     const isShowAddMusicTo = ref(false)
+    const isShowQueue = ref(false)
+    const pendingCount = computed(() => Math.max(0, playQueue.length - playQueueIndex.value - 1))
     const {
       toggleDesktopLyricBtnTitle,
       toggleDesktopLyric,
@@ -41,6 +52,8 @@ export default {
     return {
       appSetting,
       isShowAddMusicTo,
+      isShowQueue,
+      pendingCount,
       toggleDesktopLyricBtnTitle,
       toggleDesktopLyric,
       toggleLockDesktopLyric,
@@ -68,6 +81,7 @@ export default {
 }
 
 .titleBtn {
+  position: relative;
   flex: none;
   height: 100%;
   width: 24px;
@@ -95,6 +109,22 @@ export default {
   &:active {
     opacity: 1;
   }
+}
+
+.queueCount {
+  position: absolute;
+  top: 2px;
+  right: -5px;
+  min-width: 13px;
+  height: 13px;
+  padding: 0 2px;
+  box-sizing: border-box;
+  border-radius: 7px;
+  color: #fff;
+  background: var(--color-primary);
+  font-size: 8px;
+  line-height: 13px;
+  text-align: center;
 }
 
 

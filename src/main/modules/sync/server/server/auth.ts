@@ -11,11 +11,42 @@ import { toMD5 } from '../utils'
 import { getComputerName } from '../../utils'
 import { SYNC_CODE } from '@common/constants_sync'
 
-const requestIps = new Map<string, number>()
+const requestIps = new Map<string, { count: number, expiresAt: number }>()
+const requestIpTTL = 15 * 60 * 1000
+const maxRequestIpCount = 10_000
+
+const getRequestInfo = (ip: string) => {
+  const info = requestIps.get(ip)
+  if (info && info.expiresAt <= Date.now()) {
+    requestIps.delete(ip)
+    return null
+  }
+  return info ?? null
+}
+
+const recordAuthFailed = (ip: string) => {
+  const info = getRequestInfo(ip)
+  if (!info && requestIps.size >= maxRequestIpCount) {
+    const now = Date.now()
+    for (const [key, requestInfo] of requestIps) {
+      if (requestInfo.expiresAt <= now) requestIps.delete(key)
+    }
+    while (requestIps.size >= maxRequestIpCount) {
+      const oldestIp = requestIps.keys().next().value
+      if (oldestIp == null) break
+      requestIps.delete(oldestIp)
+    }
+  }
+  requestIps.delete(ip)
+  requestIps.set(ip, {
+    count: (info?.count ?? 0) + 1,
+    expiresAt: Date.now() + requestIpTTL,
+  })
+}
 
 const getAvailableIP = (req: http.IncomingMessage) => {
   let ip = getIP(req)
-  return ip && (requestIps.get(ip) ?? 0) < 10 ? ip : null
+  return ip && (getRequestInfo(ip)?.count ?? 0) < 10 ? ip : null
 }
 
 const verifyByKey = (encryptMsg: string, userId: string) => {
@@ -77,19 +108,23 @@ export const authCode = async(req: http.IncomingMessage, res: http.ServerRespons
   if (ip) {
     if (typeof req.headers.m == 'string' && req.headers.m) {
       const userId = req.headers.i
-      const _msg = typeof userId == 'string' && userId
-        ? verifyByKey(req.headers.m, userId)
-        : verifyByCode(req.headers.m, password)
+      let _msg: string | null = null
+      try {
+        _msg = typeof userId == 'string' && userId
+          ? verifyByKey(req.headers.m, userId)
+          : verifyByCode(req.headers.m, password)
+      } catch (err) {
+        console.warn('Auth failed:', err instanceof Error ? err.message : err)
+      }
       if (_msg != null) {
         msg = _msg
         code = 200
+        requestIps.delete(ip)
       }
     }
 
     if (code != 200) {
-      const num = requestIps.get(ip) ?? 0
-      // if (num > 20) return
-      requestIps.set(ip, num + 1)
+      recordAuthFailed(ip)
     }
   } else {
     code = 403
@@ -120,10 +155,12 @@ export const authConnect = async(req: http.IncomingMessage) => {
     const query = querystring.parse((req.url!).split('?')[1])
     const i = query.i
     const t = query.t
-    if (typeof i == 'string' && typeof t == 'string' && verifyConnection(t, i)) return
+    if (typeof i == 'string' && typeof t == 'string' && verifyConnection(t, i)) {
+      requestIps.delete(ip)
+      return
+    }
 
-    const num = requestIps.get(ip) ?? 0
-    requestIps.set(ip, num + 1)
+    recordAuthFailed(ip)
   }
   throw new Error('failed')
 }

@@ -1,28 +1,30 @@
 import { SYNC_CLOSE_CODE } from '@common/constants_sync'
 import { registerDislikeActionEvent } from '../../../../dislikeEvent'
 import { getUserSpace } from '../../../user'
+import { runDislikeSyncTask } from './sync'
 
 // let socket: LX.Sync.Server.Socket | null
 let unregisterLocalListAction: (() => void) | null
 
 
 const sendListAction = async(wss: LX.Sync.Server.SocketServer, action: LX.Sync.Dislike.ActionList) => {
-  // console.log('sendListAction', action.action)
-  const userSpace = getUserSpace()
-  let key = ''
-  for (const client of wss.clients) {
-    if (!client.moduleReadys?.dislike) continue
-    // eslint-disable-next-line require-atomic-updates
-    if (!key) key = await userSpace.dislikeManage.createSnapshot()
-    void client.remoteQueueDislike.onDislikeSyncAction(action).then(async() => {
-      return userSpace.dislikeManage.updateDeviceSnapshotKey(client.keyInfo.clientId, key)
-    }).catch(err => {
-      // TODO send status
-      client.close(SYNC_CLOSE_CODE.failed)
-      // client.moduleReadys.dislike = false
-      console.log(err.message)
-    })
-  }
+  await runDislikeSyncTask(async() => {
+    // console.log('sendListAction', action.action)
+    const clients = [...wss.clients].filter(client => client.moduleReadys?.dislike)
+    if (!clients.length) return
+    const userSpace = getUserSpace()
+    const key = await userSpace.dislikeManage.createSnapshot()
+    await Promise.all(clients.map(async(client) => {
+      await client.remoteQueueDislike.onDislikeSyncAction(action).then(async() => {
+        await userSpace.dislikeManage.updateDeviceSnapshotKey(client.keyInfo.clientId, key)
+      }).catch(err => {
+        // TODO send status
+        client.close(SYNC_CLOSE_CODE.failed)
+        // client.moduleReadys.dislike = false
+        console.log(err.message)
+      })
+    }))
+  })
 }
 
 export const registerEvent = (wss: LX.Sync.Server.SocketServer) => {
@@ -33,7 +35,9 @@ export const registerEvent = (wss: LX.Sync.Server.SocketServer) => {
   // })
   unregisterEvent()
   unregisterLocalListAction = registerDislikeActionEvent((action) => {
-    void sendListAction(wss, action)
+    void sendListAction(wss, action).catch(err => {
+      console.error(err)
+    })
   })
 }
 

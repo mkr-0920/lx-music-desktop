@@ -1,13 +1,13 @@
 import { onBeforeUnmount, ref, type Ref, useCssModule } from '@common/utils/vueTools'
 import { updateUserListPosition } from '@renderer/store/list/action'
-import { userLists } from '@renderer/store/list/state'
 import useDarg from '@renderer/utils/compositions/useDrag'
 
 
-export default ({ dom_lists_list, handleSaveListName, handleMenuClick }: {
+export default ({ dom_lists_list, handleSaveListName, handleMenuClick, visibleUserLists }: {
   dom_lists_list: Ref<HTMLElement | null>
   handleSaveListName: () => Promise<void> | void
   handleMenuClick: () => void
+  visibleUserLists: Ref<LX.List.UserListInfo[]>
 }) => {
   const isModDown = ref(false)
   const styles = useCssModule()
@@ -17,7 +17,10 @@ export default ({ dom_lists_list, handleSaveListName, handleMenuClick }: {
     dragingItemClassName: styles.dragingItem,
     filter: 'default-list',
     onUpdate(newIndex: number, oldIndex: number) {
-      void updateUserListPosition({ ids: [userLists[oldIndex - 2].id], position: newIndex - 2 })
+      const ids = visibleUserLists.value.map(list => list.id)
+      const [id] = ids.splice(oldIndex - 3, 1)
+      ids.splice(newIndex - 3, 0, id)
+      void updateUserListPosition({ ids, position: 0 })
     },
   })
 

@@ -16,9 +16,9 @@ const pcConfig = {
 const mobileConfig = {
   baseUrl: 'https://interface3.music.163.com',
   headers: {
-    'User-Agent': 'NeteaseMusic/9.1.92.241106104852(9001092);Dalvik/2.1.0 (Linux; U; Android 12; Redmi K1000 Pro Build/SKQ1.211006.001)',
+    'User-Agent': 'NeteaseMusic/9.4.70.260310173524(9004070);Dalvik/2.1.0 (Linux; U; Android 15; Mi 1000 Pro Build/SKQ1.211006.001)',
     // fallback
-    Cookie: 'MUSIC_A=00F96BA6871CBB6EE070E0390DC26CD5E4575D83DA12DA9CFE1B735EB3F3EB6D93B80180E09C8474D19044CF09BCF0D5BF03989D8F253209A6EA7020B9A8958C1E930D48D7E379B72541201ED6914C038413C305F959A27CBFCB8FB043A33750419BA22FA4FEDE1D7071A8DF92D86DF4ED72761DF90B807F11E5193EA90F377DAF1AE084389023BBB20F850FB84754B08812F3215E35AF937939826B150219BBE726695E4C119E933AE765C72126C5065BDAF1E7DAEC10D6B23D68CC1885E904BECC52783D147DE82953E26592017D9EBCAB2FD7E60D329E59F565B30B9D0FCAE96EE95095C36076E00E22AEAF09E5A9EE17C2264B6E2006899BCFBA83CF9B887F94B0C2F2072A21E5C8915F88DDD1BC49FF684D73A0C6B22492744A9B1AF2F04190C2B32E51CDA650D3970937B4952570E5FBD6046B284149F007D39B9856208CE71A300D48F11583A27F27FBD2AFADB55A1573B55EFAE2D5BE34C874C07DA45B3B1A2651B88306D05EECDCA4AF9899BAF4DF5B1DA3F6FABA7443A02DE9F0F3100D82CCEB6EC261DEDEB5C46BB9BDC449954CEEBACB82CC85E6694DF5C131F5B65A72EA8F396766549B7F8CD699038847E3CE3AE96F04655C805986EB7A8EDA87D3611E12D8C7E97A2BE98A70595961BD0685E24D6C8CF3D4D2396E83E813A0DA447FA67112A8E6894C99533C9F036C1A7C8EE7B71CE4891E7D07214384273122',
+    Cookie: 'EVNSM=1.0.0; NMCID=hkumvg.1774926022513.01.4; versioncode=9004085; buildver=260324204021; resolution=2356x1080; ntes_kaola_ad=1; mobilename=Mi1000Pro; __csrf=beebb40103c69dd3ec3222d2c866bc25; brand=Mi; osver=12; os=android; channel=xiaomi; MUSIC_A=009D8BF2D1AEAB157B21987FC1986E0E8FCD8E1362E664E4D7DDDE78E50F709C75763C4BA8122020A9A2E40472C2E9DA9A31B9AFF81B34A6E8BC422AA25E123D46898E294B96AEA9AE26977759209B41555B280C0D7CA91CD987114138B287FD414574E18BFB212CFC6963E8A25D431135263C9141C7702725712349039808535BA54387A2F874CD82D0421C22394A2B0542DF8E097CC3030B495735F731C73DB0F1668CBE339156B80B0AAD723BCBF13D3D65CC9122CB7749C8AF7F30DC6C807504C1228ED5AD03074E9AF9132E374937111A65E1D4F4C3FD45FBED41F972A52AE747EC57A6F38DF29C398FD8796A092595F7BFDA4E96F6C91C1FBBF107D968187FC0880A68298EF571936F77604EBC68E0B307A878B04D296B4BA3E6621369EDB4C68B28D02B3DEF9D1C829A504276AC90B0F928BF1AF255DBFBF8BC4528390C6E692D61987A437A323BB2C33CFB64E4A8A037BA77487AD364FBFDA3BF3EE2C362CA2B85CFFCDF8A8FC7176A866DA0673B6BE665371795FA693C6ADFB10E018F3BB68630D63D5C4F59B00705439C1508C4E98426BDA77DADBF68E717FC1F0C33E2AB8F8A6A75166B9BDBB1CC1F512E19DEE47FC4CC1762B885C88FB8B4103267210DC6AA38955E1B82E06921E00A9BA3D825974D32647AAF27DE08303ABBD1D7E98BFC05279F1D1977425FB73FA4C1E1B2F339A13734FCAC10EC184FE686F00D; screenType=other; deviceId=CTRjOjYzOjcxOmM0OjY3OjRiCTU2MzE4Y2VlNmY3YmYzMjgJMGU3NTFmZGY3YTc5NTA1Yw%3D%3D; appver=9.4.85; NMDI=Q1NKTQkBDAA5WsL3b3gFxOBZrWdUAAAAyos%2BaJ7l%2BoAen2zBCPZ67UI3Zax4tvJmWc3x%2Fcel9Z6BHmN9UxBQqHxpx%2BqySQWbbMs5MaK%2F%2F1MuGD58Rbcp%2BlRK21TsafhDqh9GPUtI2r%2FGDpIr; NMTID=00OT2vlabPL6qIdfUiDgxTCprdeiEMAAAGdQdXI_Q; packageType=release; minors_mode_age_range=0',
   },
 }
 
@@ -45,18 +45,19 @@ export const eapiRequest = (url, data, options = 'pc') => {
   const fullEapiUrl = `${config.baseUrl}${url.replace('/api/', '/eapi/')}`
 
   // 合并 Headers
-  // 逻辑: config.headers 是底色(包含默认Cookie)，customHeaders 是用户传的(包含用户Cookie)
-  // 如果 customHeaders 里有 Cookie，就会覆盖掉 config.headers 里的 Cookie
   const headers = {
     ...config.headers,
     ...customHeaders,
   }
 
+  // 有就覆写，没有就追加
+  // 强制要求网易云返回明文！(不管上层传的啥，到这里统统按死)
+  data.e_r = 'false'
+
   // 加密表单
   const encryptedForm = eapi(url, data)
 
-  console.log(`[WY eapiRequest] 准备发送请求: ${fullEapiUrl}`)
-  // console.log('[WY eapiRequest] Headers:', headers)
+  console.log(`[WY eapiRequest] 🚀 请求 -> ${fullEapiUrl}`, data)
 
   const requestObj = httpFetch(fullEapiUrl, {
     method: 'post',
@@ -65,21 +66,98 @@ export const eapiRequest = (url, data, options = 'pc') => {
   })
 
   requestObj.promise = requestObj.promise.then(({ body, raw }) => {
-    // 解密
-    const decryptedText = eapiDecrypt(raw)
-    let decryptedJson
+    // 1. 统一数据源：确保拿到的是个字符串形式的响应体 (类似 Python 的 content_bytes 提取)
+    // 无论底层 raw 给的是 Buffer 还是 String，统一转 utf8 字符串并去首尾空格
+    const rawBuffer = Buffer.isBuffer(raw) ? raw : Buffer.from(raw || '')
+    const rawText = rawBuffer.toString('utf8').trim()
+
+    // 可选：打印日志看前 50 个字符
+    console.log('[WY eapiRequest] 📦 原始响应头:', rawText.substring(0, 50))
+
+    // 2. 核心探测：如果以 '{' 或 '[' 开头，100% 是明文 JSON，直接秒解！(O(1) 判断)
+    if (rawText.startsWith('{') || rawText.startsWith('[')) {
+      try {
+        // httpFetch 可能已经帮我们把明文解析到了 body，优先用 body，没有再自己 parse
+        const finalJson = typeof body === 'object' && body !== null ? body : JSON.parse(rawText)
+        return { body: finalJson, raw: rawText }
+      } catch (e) {
+        console.error('[WY eapiRequest] 明文 JSON 解析失败:', e)
+        return { body: { code: 501, message: 'JSON Parse failed' }, raw: rawText }
+      }
+    }
+
+    // 3. 如果走到这里，且是 eapi (这个函数本身就是 eapiRequest)，说明遇到了强制加密的硬茬
     try {
-      // 解析 JSON
-      decryptedJson = JSON.parse(decryptedText)
+      // 此时的 rawText 应该是一串十六进制 (Hex) 字符串
+      const decryptedText = eapiDecrypt(rawText)
+      const finalJson = JSON.parse(decryptedText)
+      return { body: finalJson, raw: rawText }
     } catch (e) {
-      console.error('[WY eapiRequest] JSON 解析失败:', e)
-      decryptedJson = { code: 501, message: 'JSON Parse failed' }
+      console.error('[WY eapiRequest] EAPI 解密或 JSON 解析失败:', e)
+      return { body: { code: 501, message: 'Decrypt or Parse failed' }, raw: rawText }
+    }
+  }).catch(err => {
+    console.error('[WY eapiRequest] 请求失败:', err)
+    throw err
+  })
+
+  return requestObj
+}
+
+/**
+ * 通用明文 API 请求函数 (不进行 eapi 加解密)
+ * @param {string} url - 接口路径
+ * @param {object} data - 请求明文参数
+ * @param {string|object} options - 'pc' | 'mobile' 或 { mobile: boolean, headers: object }
+ */
+export const apiRequest = (url, data, options = 'pc') => {
+  // 1. 解析 options 参数 (保留对其他用户自定义 headers/cookie 的支持)
+  let clientType = 'pc'
+  let customHeaders = {}
+
+  if (typeof options === 'string') {
+    clientType = options
+  } else if (typeof options === 'object' && options !== null) {
+    clientType = options.mobile ? 'mobile' : 'pc'
+    customHeaders = options.headers || {}
+  }
+
+  // 2. 获取基础配置
+  const config = clientType === 'mobile' ? mobileConfig : pcConfig
+
+  const fullApiUrl = `${config.baseUrl}${url}`
+
+  // 3. 合并 Headers
+  const headers = {
+    ...config.headers,
+    ...customHeaders,
+  }
+
+  console.log(`[WY apiRequest] 准备发送明文请求: ${fullApiUrl}`)
+
+  const requestObj = httpFetch(fullApiUrl, {
+    method: 'post',
+    headers,
+    form: data,
+  })
+
+  requestObj.promise = requestObj.promise.then(({ body, raw }) => {
+    let parsedJson
+    try {
+      if (typeof body === 'object' && body !== null) {
+        parsedJson = body
+      } else {
+        parsedJson = JSON.parse(raw)
+      }
+    } catch (e) {
+      console.error('[WY apiRequest] JSON 解析失败:', e)
+      parsedJson = { code: 501, message: 'JSON Parse failed' }
     }
 
     // 返回结果
-    return { body: decryptedJson, raw: decryptedText }
+    return { body: parsedJson, raw }
   }).catch(err => {
-    console.error('[WY eapiRequest] 请求失败:', err)
+    console.error('[WY apiRequest] 请求失败:', err)
     throw err
   })
 

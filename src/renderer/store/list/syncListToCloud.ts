@@ -99,20 +99,20 @@ const manipulateTracks = async(op: 'add' | 'del' | 'update', playlistId: string,
 export default async(listInfo: LX.List.UserListInfo) => {
   if (!listInfo.sourceListId || listInfo.source !== 'wy') {
     toast('此列表未绑定网易云歌单ID，无法同步', 'error')
-    return
+    return false
   }
 
   const wyCookie = appSetting['common.wyCookie']
   if (!wyCookie) {
     toast('请先在设置-基本设置中填写网易云 Cookie', 'error')
-    return
+    return false
   }
 
   // 在此处解析纯数字 ID
   const playlistId = parsePlaylistId(listInfo.sourceListId)
   if (!playlistId) {
     toast('无效的歌单 ID', 'error')
-    return
+    return false
   }
 
   toast(`开始同步: ${listInfo.name}`, 'normal')
@@ -122,6 +122,11 @@ export default async(listInfo: LX.List.UserListInfo) => {
     // 获取本地歌曲 ID 列表
     const localMusics = await getListMusics(listInfo.id)
     const targetSongIds: string[] = []
+    const unsupportedMusics = localMusics.filter(musicInfo => musicInfo.source !== 'wy')
+    if (unsupportedMusics.length) {
+      toast(`有 ${unsupportedMusics.length} 首歌曲不是网易云来源，请先换源后再同步`, 'error')
+      return false
+    }
 
     localMusics.forEach(m => {
       if (m.source === 'wy' && m.id) {
@@ -132,6 +137,10 @@ export default async(listInfo: LX.List.UserListInfo) => {
         }
       }
     })
+    if (targetSongIds.length != localMusics.length) {
+      toast('部分歌曲缺少有效的网易云歌曲 ID，请先换源后再同步', 'error')
+      return false
+    }
 
     // 获取远程歌单当前状态
     const currentSongIdSet = await getRemotePlaylistTracks(playlistId)
@@ -164,8 +173,10 @@ export default async(listInfo: LX.List.UserListInfo) => {
 
     console.log('[Sync] 同步完成')
     toast('同步至网易云成功！', 'success')
+    return true
   } catch (err: any) {
     console.error('[Sync] 同步失败:', err)
     toast(`同步失败: ${err.message || '未知错误'}`, 'error')
+    return false
   }
 }

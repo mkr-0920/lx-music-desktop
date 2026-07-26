@@ -273,7 +273,9 @@ export const createSortedList = (list: LX.Music.MusicInfo[], position: number, i
   const map = new Map<string, LX.Music.MusicInfo>()
   for (const item of list) map.set(item.id, item)
   for (const id of ids) {
-    infos.push(map.get(id)!)
+    const info = map.get(id)
+    if (!info) continue
+    infos.push(info)
     map.delete(id)
   }
   list = list.filter(mInfo => map.has(mInfo.id))

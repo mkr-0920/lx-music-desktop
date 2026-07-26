@@ -23,6 +23,14 @@ const router = createRouter({
       },
     },
     {
+      path: '/artist/detail',
+      name: 'ArtistDetail',
+      component: require('./views/Search/ArtistDetail.vue').default,
+      meta: {
+        name: 'Search',
+      },
+    },
+    {
       path: '/songList/detail',
       name: 'SongListDetail',
       component: require('./views/songList/Detail/index.vue').default,

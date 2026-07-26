@@ -8,8 +8,13 @@ import { SYNC_CLOSE_CODE } from '@common/constants_sync'
 // type ListInfoType = LX.List.UserListInfoFull | LX.List.MyDefaultListInfoFull | LX.List.MyLoveListInfoFull
 
 // let wss: LX.Sync.Server.SocketServer | null
-let syncingId: string | null = null
-const wait = async(time = 1000) => await new Promise((resolve, reject) => setTimeout(resolve, time))
+let syncQueue: Promise<void> = Promise.resolve()
+
+export const runListSyncTask = async<T>(task: () => Promise<T>): Promise<T> => {
+  const currentTask = syncQueue.catch(() => {}).then(task)
+  syncQueue = currentTask.then(() => {}, () => {})
+  return currentTask
+}
 
 const patchListData = (listData: Partial<LX.Sync.List.ListData>): LX.Sync.List.ListData => {
   return Object.assign({
@@ -153,7 +158,7 @@ const mergeList = (socket: LX.Sync.Server.Socket, sourceListData: LX.Sync.List.L
       sourceList.list = handleMergeList(sourceList.list, list.list, addMusicLocationType)
 
       const sourceUpdateTime = sourceList?.locationUpdateTime ?? 0
-      if (targetUpdateTime >= sourceUpdateTime) return
+      if (targetUpdateTime <= sourceUpdateTime) return
       // 调整位置
       const [newList] = newListData.userList.splice(newListData.userList.findIndex(l => l.id == list.id), 1)
       newList.locationUpdateTime = targetUpdateTime
@@ -377,7 +382,7 @@ const handleMergeListDataFromSnapshot = async(socket: LX.Sync.Server.Socket, sna
       if (localUpdateTime >= remoteUpdateTime) return
       // 调整位置
       const [newList] = newUserList.splice(newUserList.findIndex(l => l.id == list.id), 1)
-      newList.locationUpdateTime = localUpdateTime
+      newList.locationUpdateTime = remoteUpdateTime
       newUserList.splice(index, 0, newList)
     } else {
       if (remoteUpdateTime) {
@@ -414,57 +419,21 @@ const syncList = async(socket: LX.Sync.Server.Socket) => {
   await handleSyncList(socket)
 }
 
-// export default async(_wss: LX.Sync.Server.SocketServer, socket: LX.Sync.Server.Socket) => {
-//   if (!wss) {
-//     wss = _wss
-//     _wss.addListener('close', () => {
-//       wss = null
-//     })
-//   }
-
-//   let disconnected = false
-//   socket.onClose(() => {
-//     disconnected = true
-//     if (syncingId == socket.keyInfo.clientId) syncingId = null
-//   })
-
-//   while (true) {
-//     if (disconnected) throw new Error('disconnected')
-//     if (!syncingId) break
-//     await wait()
-//   }
-
-//   syncingId = socket.keyInfo.clientId
-//   await syncList(socket).then(async() => {
-//     return finishedSync(socket)
-//   }).finally(() => {
-//     syncingId = null
-//   })
-// }
-
-// const removeSnapshot = async(keyInfo: LX.Sync.KeyInfo) => {
-//   const filePath = getSnapshotFilePath(keyInfo)
-//   await fsPromises.unlink(filePath)
-// }
-
 export const sync = async(socket: LX.Sync.Server.Socket) => {
   let disconnected = false
-  socket.onClose(() => {
+  const removeCloseListener = socket.onClose(() => {
     disconnected = true
-    if (syncingId == socket.keyInfo.clientId) syncingId = null
   })
 
-  while (true) {
-    if (disconnected) throw new Error('disconnected')
-    if (!syncingId) break
-    await wait()
+  try {
+    await runListSyncTask(async() => {
+      if (disconnected) throw new Error('disconnected')
+      await syncList(socket)
+      if (disconnected) throw new Error('disconnected')
+      await finishedSync(socket)
+      socket.moduleReadys.list = true
+    })
+  } finally {
+    removeCloseListener()
   }
-
-  syncingId = socket.keyInfo.clientId
-  await syncList(socket).then(async() => {
-    await finishedSync(socket)
-    socket.moduleReadys.list = true
-  }).finally(() => {
-    syncingId = null
-  })
 }

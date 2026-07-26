@@ -5,6 +5,7 @@ import { throttle } from '@common/utils/common'
 import { filterFileName, toMD5 } from '../utils'
 import { File } from '@common/constants_sync'
 import { exists } from '../../utils'
+import { readJsonFileWithBackupSync, writeJsonFileAtomicSync } from '../utils/jsonFile'
 
 
 interface ServerInfo {
@@ -16,29 +17,26 @@ interface DevicesInfo {
   clients: Record<string, LX.Sync.ServerKeyInfo>
 }
 const saveServerInfoThrottle = throttle(() => {
-  fs.writeFile(path.join(global.lxDataPath, File.serverDataPath, File.serverInfoJSON), JSON.stringify(serverInfo), (err) => {
-    if (err) console.error(err)
-  })
+  try {
+    writeJsonFileAtomicSync(path.join(global.lxDataPath, File.serverDataPath, File.serverInfoJSON), serverInfo)
+  } catch (err) {
+    console.error(err)
+  }
 })
 let serverInfo: ServerInfo
 export const initServerInfo = async() => {
   if (serverInfo != null) return
+  const syncDataPath = path.join(global.lxDataPath, File.serverDataPath)
+  if (!await exists(syncDataPath)) await fs.promises.mkdir(syncDataPath, { recursive: true })
+
   const serverInfoFilePath = path.join(global.lxDataPath, File.serverDataPath, File.serverInfoJSON)
-  if (await exists(serverInfoFilePath)) {
-    // eslint-disable-next-line require-atomic-updates
-    serverInfo = JSON.parse((await fs.promises.readFile(serverInfoFilePath)).toString())
-  } else {
-    // eslint-disable-next-line require-atomic-updates
-    serverInfo = {
-      serverId: randomBytes(4 * 4).toString('base64'),
-      version: 2,
-    }
-    const syncDataPath = path.join(global.lxDataPath, File.serverDataPath)
-    if (!await exists(syncDataPath)) {
-      await fs.promises.mkdir(syncDataPath, { recursive: true })
-    }
-    saveServerInfoThrottle()
-  }
+  const hasServerInfo = fs.existsSync(serverInfoFilePath) || fs.existsSync(`${serverInfoFilePath}.bak`)
+  // eslint-disable-next-line require-atomic-updates
+  serverInfo = readJsonFileWithBackupSync<ServerInfo>(serverInfoFilePath, () => ({
+    serverId: randomBytes(4 * 4).toString('base64'),
+    version: 2,
+  }))
+  if (!hasServerInfo) saveServerInfoThrottle()
 }
 export const getServerId = () => {
   return serverInfo.serverId
@@ -112,7 +110,8 @@ export class UserDataManage {
   }
 
   saveClientKeyInfo = (keyInfo: LX.Sync.ServerKeyInfo) => {
-    if (this.devicesInfo.clients[keyInfo.clientId] == null && Object.keys(this.devicesInfo.clients).length > 101) throw new Error('max keys')
+    const maxDeviceCount = 100
+    if (this.devicesInfo.clients[keyInfo.clientId] == null && Object.keys(this.devicesInfo.clients).length >= maxDeviceCount) throw new Error('max keys')
     this.devicesInfo.clients[keyInfo.clientId] = keyInfo
     this.saveDevicesInfoThrottle()
   }
@@ -135,14 +134,17 @@ export class UserDataManage {
   constructor(userName: string) {
     this.userName = userName
     const syncDataPath = path.join(global.lxDataPath, File.serverDataPath)
+    fs.mkdirSync(syncDataPath, { recursive: true })
     this.userDir = syncDataPath
     this.devicesFilePath = path.join(this.userDir, File.userDevicesJSON)
-    this.devicesInfo = fs.existsSync(this.devicesFilePath) ? JSON.parse(fs.readFileSync(this.devicesFilePath).toString()) : { userName, clients: {} }
+    this.devicesInfo = readJsonFileWithBackupSync<DevicesInfo>(this.devicesFilePath, () => ({ userName, clients: {} }))
 
     this.saveDevicesInfoThrottle = throttle(() => {
-      fs.writeFile(this.devicesFilePath, JSON.stringify(this.devicesInfo), 'utf8', (err) => {
-        if (err) console.error(err)
-      })
+      try {
+        writeJsonFileAtomicSync(this.devicesFilePath, this.devicesInfo)
+      } catch (err) {
+        console.error(err)
+      }
     })
   }
 }

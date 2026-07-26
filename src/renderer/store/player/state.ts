@@ -34,6 +34,8 @@ export const status = window.lxData.status = ref('')
 
 export const statusText = ref('')
 
+export const playbackSource = ref<LX.Source | null>(null)
+
 export const isShowPlayerDetail = ref(false)
 
 export const isShowPlayComment = ref(false)
@@ -68,6 +70,10 @@ export const playInfo = shallowReactive<LX.Player.PlayInfo>({
 export const playedList = window.lxData.playedList = shallowReactive<LX.Player.PlayMusicInfo[]>([])
 
 export const tempPlayList = shallowReactive<LX.Player.PlayMusicInfo[]>([])
+
+export const playQueue = shallowReactive<LX.Player.PlayQueueItem[]>([])
+
+export const playQueueIndex = ref(-1)
 
 window.lxData.playInfo = playInfo
 window.lxData.playMusicInfo = playMusicInfo

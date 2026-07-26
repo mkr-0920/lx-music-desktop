@@ -13,8 +13,8 @@ import { supportQuality } from './api-source'
 // 导入 userApi 状态
 import { userApi } from '@renderer/store'
 
-import leaderboard_daily from './mkr/leaderboard_daily'
-import leaderboard_fm from './mkr/leaderboard_fm'
+import leaderboard_daily from './wy/recommend/daily'
+import leaderboard_fm from './wy/recommend/fm'
 
 const wy_daily = {
   leaderboard: leaderboard_daily, // 挂载日推列表逻辑
