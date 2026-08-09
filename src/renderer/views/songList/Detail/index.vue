@@ -45,7 +45,7 @@ import { ref, watch } from '@common/utils/vueTools'
 import { listDetailInfo } from '@renderer/store/songList/state'
 import { setVisibleListDetail } from '@renderer/store/songList/action'
 // 【引入 useRoute】用来判断当前是不是专辑页
-import { useRouter, useRoute } from '@common/utils/vueRouter'
+import { onBeforeRouteLeave, useRouter, useRoute } from '@common/utils/vueRouter'
 import { addSongListDetail, playSongListDetail } from './action'
 import useList from './useList'
 import useKeyBack from './useKeyBack'
@@ -63,6 +63,7 @@ interface Query {
   id?: string
   page?: string
   picUrl?: string
+  type?: 'album'
   refresh?: 'true'
   fromName?: string
 }
@@ -72,6 +73,7 @@ const verifyQueryParams = async function(this: any, to: { query: Query, path: st
   let _id = to.query.id
   let _page: string | undefined = to.query.page
   let _picUrl: string | undefined = to.query.picUrl
+  let _type: 'album' | undefined = to.query.type
   let _refresh: 'true' | undefined = to.query.refresh
 
   if (_source == null || _id == null) {
@@ -80,6 +82,7 @@ const verifyQueryParams = async function(this: any, to: { query: Query, path: st
       _id = listDetailInfo.id
       _page = listDetailInfo.page.toString()
       _picUrl = listDetailInfo.info.img
+      _type = listDetailInfo.detailType == 'album' ? 'album' : undefined
     } else {
       setVisibleListDetail(false)
       next({ path: '/songList/list', query: {} })
@@ -88,7 +91,7 @@ const verifyQueryParams = async function(this: any, to: { query: Query, path: st
 
     next({
       path: to.path,
-      query: { ...to.query, source: _source, id: _id, page: _page, picUrl: _picUrl, refresh: _refresh },
+      query: { ...to.query, source: _source, id: _id, page: _page, picUrl: _picUrl, type: _type, refresh: _refresh },
     })
     return
   }
@@ -117,18 +120,26 @@ export default {
       handlePlayList,
     } = useList()
 
+    const saveScrollPosition = () => {
+      const scrollTop = listRef.value?.getScrollTop?.()
+      if (scrollTop == null) return
+      listDetailInfo.scrollPosition = scrollTop
+    }
+
 
     const togglePage = (page: number) => {
       void getListData(source.value, id.value, page, refresh.value)
     }
 
     const handleBack = () => {
+      saveScrollPosition()
       setVisibleListDetail(false)
       if (window.lx.songListInfo.fromName) void router.replace({ name: window.lx.songListInfo.fromName })
       else router.back()
     }
 
     useKeyBack(handleBack)
+    onBeforeRouteLeave(saveScrollPosition)
 
     // 【新增】：代理播放全部按钮的点击，把 isAlbum 标识传给 action
     const handlePlayAll = () => {

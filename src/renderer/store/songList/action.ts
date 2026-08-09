@@ -12,6 +12,7 @@ import {
 } from './state'
 import type {
   ListDetailInfo,
+  ListDetailType,
   ListInfoItem,
   ListInfo,
   TagInfo,
@@ -43,10 +44,12 @@ export const setList = (result: ListInfo, tagId: string, sortId: string, page: n
   if (result.list.length) listInfo.noItemLabel = ''
   else if (page == 1) listInfo.noItemLabel = window.i18n.t('no_item')
 }
-export const setListDetail = (result: ListDetailInfo, id: string, page: number) => {
+export const setListDetail = (result: ListDetailInfo, id: string, page: number, detailType: ListDetailType = 'songList', key?: string) => {
   listDetailInfo.list = markRaw([...result.list])
   listDetailInfo.id = id
   listDetailInfo.source = result.source
+  listDetailInfo.detailType = detailType
+  if (key != null) listDetailInfo.key = key
   if (page == 1 || (result.total && result.list.length)) listDetailInfo.total = result.total
   else listDetailInfo.total = result.limit * page
   listDetailInfo.limit = result.limit
@@ -73,9 +76,19 @@ export const clearListDetail = () => {
   listDetailInfo.limit = 30
   listDetailInfo.page = 1
   listDetailInfo.key = null
+  listDetailInfo.detailType = 'songList'
+  listDetailInfo.scrollPosition = 0
   listDetailInfo.info = {}
   listDetailInfo.noItemLabel = ''
 }
+
+export const getListDetailRouteQuery = () => ({
+  source: listDetailInfo.source,
+  id: listDetailInfo.id,
+  page: listDetailInfo.page.toString(),
+  picUrl: listDetailInfo.info.img ?? '',
+  ...(listDetailInfo.detailType == 'album' ? { type: 'album' as const } : {}),
+})
 
 export const getTags = async<T extends LX.OnlineSource>(source: T) => {
   return musicSdk[source]?.songList.getTags() as Promise<TagInfo<T>>
@@ -139,6 +152,77 @@ export const getListDetail = async(id: string, source: LX.OnlineSource, page: nu
   })
 }
 
+export const getAlbumDetailKey = (id: string, source: LX.OnlineSource) => `sdetail__album__${source}__${id}`
+
+/**
+ * 获取专辑内歌曲及专辑信息
+ */
+export const getAlbumDetail = async(id: string, source: LX.OnlineSource, isRefresh = false): Promise<ListDetailInfo> => {
+  const key = getAlbumDetailKey(id, source)
+  if (isRefresh && cache.has(key)) cache.delete(key)
+  if (!isRefresh && cache.has(key)) return cache.get(key)
+
+  const albumReq = (musicSdk as any)[source]?.album?.getAlbumDetail
+  if (!albumReq) return Promise.reject(new Error('Album not supported in source: ' + source))
+
+  return albumReq(id).then((detail: any) => {
+    const detailList = detail.list ?? []
+    const result: ListDetailInfo = {
+      list: markRawList(detailList.map((item: any) => toNewMusicInfo(item)) as LX.Music.MusicInfoOnline[]),
+      source,
+      desc: detail.info?.desc ?? null,
+      total: detailList.length,
+      page: 1,
+      limit: detailList.length || 1000,
+      key,
+      id,
+      detailType: 'album',
+      scrollPosition: 0,
+      info: {
+        name: detail.info?.name || '',
+        author: detail.info?.singer || '',
+        img: detail.info?.img || '',
+        desc: `发行时间：${detail.info?.publishTime || '未知'}\n发行公司：${detail.info?.company || '未知'}\n\n${detail.info?.desc || ''}`,
+        play_count: '',
+      },
+      noItemLabel: '',
+    }
+    cache.set(key, result)
+    return result
+  })
+}
+
+/**
+ * 获取并设置专辑详情。返回 true 表示复用了当前页面缓存。
+ */
+export const getAndSetAlbumDetail = async(id: string, source: LX.OnlineSource, isRefresh = false): Promise<boolean> => {
+  const key = getAlbumDetailKey(id, source)
+  const isCurrentCache = !isRefresh && listDetailInfo.key == key && listDetailInfo.detailType == 'album' && cache.has(key)
+  if (isCurrentCache) return true
+
+  listDetailInfo.key = key
+  listDetailInfo.detailType = 'album'
+  listDetailInfo.id = id
+  listDetailInfo.source = source
+  listDetailInfo.page = 1
+  listDetailInfo.scrollPosition = 0
+  listDetailInfo.noItemLabel = window.i18n.t('list__loading')
+  listDetailInfo.info = { name: '', author: '', img: '', desc: '', play_count: '' }
+  listDetailInfo.list = []
+
+  return getAlbumDetail(id, source, isRefresh).then(result => {
+    if (key != listDetailInfo.key) return false
+    setListDetail(result, id, 1, 'album', key)
+    return false
+  }).catch((error: any) => {
+    if (key != listDetailInfo.key) return false
+    clearListDetail()
+    listDetailInfo.noItemLabel = window.i18n.t('list__load_failed')
+    console.log(error)
+    throw error
+  })
+}
+
 /**
  * 获取歌单内全部歌曲
  * @param id 歌单id
@@ -190,6 +274,8 @@ export const getAndSetListDetail = async(id: string, source: LX.OnlineSource, pa
   if (!isRefresh && listDetailInfo.key == key && listDetailInfo.list.length) return
 
   listDetailInfo.key = key
+  listDetailInfo.detailType = 'songList'
+  listDetailInfo.scrollPosition = 0
   listDetailInfo.noItemLabel = window.i18n.t('list__loading')
 
   return getListDetail(id, source, page, isRefresh).then((result: ListDetailInfo) => {

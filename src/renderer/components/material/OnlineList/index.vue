@@ -251,7 +251,13 @@ export default {
       }
     }
     const scrollToTop = () => {
-      listRef.value.scrollTo(0, true)
+      listRef.value?.scrollTo(0, true)
+    }
+    const scrollTo = (top, animate = false) => {
+      listRef.value?.scrollTo(top, animate)
+    }
+    const getScrollTop = () => {
+      return listRef.value?.getScrollTop?.() ?? 0
     }
 
     return {
@@ -282,6 +288,8 @@ export default {
       selectedDownloadMusicInfo,
 
       scrollToTop,
+      scrollTo,
+      getScrollTop,
       actionButtonsVisible,
     }
   },

@@ -62,6 +62,8 @@ export interface ListInfo {
   sortId: string
 }
 
+export type ListDetailType = 'songList' | 'album'
+
 export interface ListDetailInfo {
   list: LX.Music.MusicInfoOnline[]
   source: LX.OnlineSource
@@ -71,6 +73,8 @@ export interface ListDetailInfo {
   limit: number
   key: string | null
   id: string
+  detailType: ListDetailType
+  scrollPosition: number
   info: {
     name?: string
     img?: string
@@ -102,6 +106,8 @@ export const listDetailInfo = reactive<ListDetailInfo>({
   limit: 30,
   key: null,
   source: 'kw',
+  detailType: 'songList',
+  scrollPosition: 0,
   info: {},
   noItemLabel: '',
 })

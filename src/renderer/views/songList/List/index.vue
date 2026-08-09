@@ -20,7 +20,8 @@ import TagList from './components/TagList.vue'
 import SortTab from './components/SortTab.vue'
 import OpenListModal from './components/OpenListModal.vue'
 import ListView from './ListView.vue'
-import { sources, listInfo, isVisibleListDetail } from '@renderer/store/songList/state'
+import { sources, listInfo, listDetailInfo, isVisibleListDetail } from '@renderer/store/songList/state'
+import { getListDetailRouteQuery } from '@renderer/store/songList/action'
 import { sourceNames } from '@renderer/store'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 
@@ -43,8 +44,8 @@ const verifyQueryParams = async function(this: any, to: { query: Query, path: st
   let _sortId = to.query.sortId
   let _page: string | undefined = to.query.page
 
-  if (isVisibleListDetail.value) {
-    next({ path: '/songList/detail', query: {} })
+  if (isVisibleListDetail.value && listDetailInfo.id) {
+    next({ path: '/songList/detail', query: getListDetailRouteQuery() })
     return
   } else if (_source == null) {
     if (listInfo.key) {
