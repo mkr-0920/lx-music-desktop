@@ -1,10 +1,10 @@
 <template>
-  <div :class="$style.container" class="scroll">
-    <div v-if="loading || error || (!list.length && searchText)" :class="$style.tip">
-      {{ loading ? $t('list__loading') : error ? $t('list__load_failed') : $t('no_item') }}
+  <div ref="listRef" :class="$style.container" class="scroll">
+    <div v-if="listInfo.noItemLabel" :class="$style.tip">
+      {{ listInfo.noItemLabel }}
     </div>
     <div v-else :class="$style.grid">
-      <button v-for="item in list" :key="item.id" :class="$style.item" @click="handleClick(item)">
+      <button v-for="item in listInfo.list" :key="item.id" :class="$style.item" @click="handleClick(item)">
         <img :src="item.img" :class="$style.cover" loading="lazy" />
         <span :class="$style.name">{{ item.name }}</span>
         <span v-if="item.alias.length" :class="$style.alias">{{ item.alias.join(' / ') }}</span>
@@ -12,57 +12,36 @@
       </button>
     </div>
     <material-pagination
-      v-if="total > limit"
-      :count="total"
-      :limit="limit"
-      :page="page"
+      v-if="listInfo.total > listInfo.limit"
+      :count="listInfo.total"
+      :limit="listInfo.limit"
+      :page="listInfo.page"
       @btn-click="togglePage"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from '@common/utils/vueTools'
+import { watch } from '@common/utils/vueTools'
 import { useRoute, useRouter } from '@common/utils/vueRouter'
 import { searchText } from '@renderer/store/search/state'
-import { addHistoryWord } from '@renderer/store/search/action'
-import music from '@renderer/utils/musicSdk'
+import useList from './useList'
+
+// 歌手搜索目前仅网易云支持
+const SOURCE: LX.OnlineSource = 'wy'
 
 const props = defineProps<{ page: number }>()
 const router = useRouter()
 const route = useRoute()
-const list = ref<any[]>([])
-const total = ref(0)
-const limit = 30
-const loading = ref(false)
-const error = ref(false)
-let requestKey = ''
 
-const search = async(text: string, page: number) => {
-  if (!text) {
-    list.value = []
-    total.value = 0
-    return
-  }
-  void addHistoryWord(text)
-  const key = `${text}__${page}`
-  requestKey = key
-  loading.value = true
-  error.value = false
-  try {
-    const result = await (music as any).wy.artist.search(text, page, limit)
-    if (requestKey != key) return
-    list.value = result.list
-    total.value = result.total
-  } catch {
-    if (requestKey == key) error.value = true
-  } finally {
-    if (requestKey == key) loading.value = false
-  }
-}
+const {
+  listRef,
+  listInfo,
+  search,
+} = useList(SOURCE)
 
 watch(() => [searchText.value, props.page], ([text, page]) => {
-  void search(text as string, page as number || 1)
+  search(text as string, page as number || 1)
 }, { immediate: true })
 
 const togglePage = (page: number) => {

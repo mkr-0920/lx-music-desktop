@@ -1,7 +1,7 @@
 <template>
   <div ref="dom_menu" :class="$style.menu">
     <ul :class="$style.list" role="toolbar">
-      <li v-for="item in menus" :key="item.to" :class="$style.navItem" role="presentation">
+      <li v-for="item in menus" :key="item.name" :class="$style.navItem" role="presentation">
         <router-link :class="[$style.link, {[$style.active]: $route.meta.name == item.name}]" role="tab" :aria-selected="$route.meta.name == item.name" :to="item.to" :aria-label="item.tips">
           <svg version="1.1" xmlns="http://www.w3.org/2000/svg" xlink="http://www.w3.org/1999/xlink" :viewBox="item.iconSize" :height="item.size" :width="item.size" space="preserve">
             <use :xlink:href="item.icon" />
@@ -15,18 +15,30 @@
 <script lang="ts">
 import { appSetting } from '@renderer/store/setting'
 import { useI18n } from '@root/lang'
-import { ref, computed } from '@common/utils/vueTools'
+import { ref, computed, reactive, watch } from '@common/utils/vueTools'
+import { useRoute } from '@common/utils/vueRouter'
 import { useIconSize } from '@renderer/utils/compositions/useIconSize'
+
+// 记录每个导航分区最后停留的完整路径，用于从别的分区切回来时恢复到二级页面
+// 例如：搜索 → 歌手详情 → 排行榜 → 搜索，能回到歌手详情而不是搜索首页
+const lastPaths = reactive<Record<string, string>>({})
 
 export default {
   name: 'NavBar',
   setup() {
     const t = useI18n()
+    const route = useRoute()
     const dom_menu = ref<HTMLElement>()
     const iconSize = useIconSize(dom_menu, 0.32)
 
+    watch(() => route.fullPath, () => {
+      const name = route.meta.name as string | undefined
+      if (name) lastPaths[name] = route.fullPath
+    }, { immediate: true })
+
     const menus = computed(() => {
       const size = iconSize.value
+      const currentName = route.meta.name
       return [
         {
           to: '/search',
@@ -82,7 +94,11 @@ export default {
           enable: true,
           name: 'Setting',
         },
-      ].filter(m => m.enable)
+      ].filter(m => m.enable).map(m => ({
+        ...m,
+        // 已在当前分区时点图标 = 回该分区首页；在别的分区时点 = 回上次停留的位置
+        to: currentName == m.name ? m.to : (lastPaths[m.name] ?? m.to),
+      }))
     })
     return {
       appSetting,

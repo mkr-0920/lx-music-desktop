@@ -9,6 +9,20 @@ import { type I18n } from '@renderer/plugins/i18n'
 // }
 
 
+/** 单个歌手的专辑列表缓存，支持中途离开后续传剩余分页 */
+interface ArtistAlbumsCache {
+  id: string
+  name: string
+  img: string
+  albums: any[]
+  sort: string
+  scrollPosition: number
+  /** 下一次要请求的页码 */
+  nextPage: number
+  /** 是否还有未加载的分页 */
+  more: boolean
+}
+
 interface Lx {
   // appSetting: LX.AppSetting
   isEditingHotKey: boolean
@@ -24,11 +38,13 @@ interface Lx {
     searchKey: string | null
     searchPosition: number
   }
+  artistInfo: {
+    searchKey: string | null
+    searchPosition: number
+  }
   artistDetailInfo: {
-    id: string
-    albums: any[]
-    sort: string
-    scrollPosition: number
+    /** LRU：最近访问的歌手排在最前 */
+    caches: ArtistAlbumsCache[]
   }
   songListInfo: {
     fromName: string

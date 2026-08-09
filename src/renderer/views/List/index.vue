@@ -27,6 +27,7 @@
 
 <script>
 import { getListPrevSelectId } from '@renderer/utils/data'
+import { findWyRemoteBoardId } from '@renderer/store/list/wyRemoteDraft'
 
 import MyList from './MyList/index.vue'
 import MusicList from './MusicList/index.vue'
@@ -45,9 +46,11 @@ export default {
     let id = to.query.id
     if (!id) {
       id = await getListPrevSelectId()
+      // 上次停留的是网易云歌单草稿：补回 source / boardId，否则会退化成普通本地列表
+      const boardId = findWyRemoteBoardId(id)
       next({
         path: to.path,
-        query: { id },
+        query: boardId ? { id, source: 'mkr', boardId, remoteEdit: 'true' } : { id },
       })
     } else next()
   },

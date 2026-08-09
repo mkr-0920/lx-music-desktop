@@ -19,11 +19,12 @@ window.lx = {
     searchKey: '',
     searchPosition: 0,
   },
+  artistInfo: {
+    searchKey: '',
+    searchPosition: 0,
+  },
   artistDetailInfo: {
-    id: '',
-    albums: [],
-    sort: 'newest',
-    scrollPosition: 0,
+    caches: [],
   },
   songListInfo: {
     fromName: '',

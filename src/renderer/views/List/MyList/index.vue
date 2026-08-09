@@ -142,16 +142,21 @@ import ListUpdateModal from './components/ListUpdateModal.vue'
 
 import { defaultList, loveList, userLists, fetchingListStatus } from '@renderer/store/list/state'
 import { removeUserList } from '@renderer/store/list/action'
-import { getBoardsList } from '@renderer/store/leaderboard/action'
 import {
   ensureWyRemoteDraft,
   findWyRemoteDraft,
   getWyRemoteId,
-  isWyRemoteDraftDirty,
   refreshWyRemoteDraft,
   saveWyRemoteDraftAsLocal,
   syncWyRemoteDraft,
 } from '@renderer/store/list/wyRemoteDraft'
+import {
+  loadWyLists,
+  updateWyDirtyStatus,
+  wyDirtyStatus,
+  wyListStatus,
+  wyLists,
+} from '@renderer/store/list/wyUserList'
 import { playList } from '@renderer/core/player/action'
 import { appSetting } from '@renderer/store/setting'
 
@@ -199,10 +204,7 @@ export default {
 
     const dom_lists_list = ref(null)
     const rightClickItemIndex = ref(-10)
-    const wyLists = ref([])
-    const wyListStatus = ref('idle')
     const wyUserId = computed(() => appSetting['common.wyUserId'].trim())
-    const wyDirtyStatus = reactive({})
     const remoteOpeningId = ref('')
     const remoteMenuItem = ref(null)
     const remoteMenuLocation = reactive({ x: 0, y: 0 })
@@ -330,31 +332,16 @@ export default {
       })
     }
     const updateRemoteDirtyStatus = async(boardId) => {
-      wyDirtyStatus[boardId] = await isWyRemoteDraftDirty(boardId)
+      await updateWyDirtyStatus(boardId)
       if (boardId == props.remoteBoardId) emitRemoteState()
     }
-    const loadWyLists = async() => {
-      if (!wyUserId.value) {
-        wyLists.value = []
-        wyListStatus.value = 'idle'
-        emitRemoteState()
-        return
-      }
-      wyListStatus.value = 'loading'
-      try {
-        const result = await getBoardsList('mkr')
-        wyLists.value = result.list
-        wyListStatus.value = 'loaded'
-        await Promise.all(wyLists.value.map(async item => updateRemoteDirtyStatus(item.id)))
-        emitRemoteState()
-      } catch (error) {
-        console.error('[WY User List] Failed to load playlists:', error)
-        wyLists.value = []
-        wyListStatus.value = 'error'
-      }
+    // 列表本身由 store 缓存，默认不联网；force 时才真正重新拉取
+    const reloadWyLists = async(force = false) => {
+      await loadWyLists(force)
+      emitRemoteState()
     }
     const handleRefreshWyLists = () => {
-      void loadWyLists()
+      void reloadWyLists(true)
     }
     const handleRemoteListToggle = async(item) => {
       if (remoteOpeningId.value) return
@@ -483,12 +470,13 @@ export default {
 
 
     watch(() => props.listId, (listId) => {
-      if (!listId || props.remoteBoardId) return
+      // 网易云歌单草稿本身也是一个 userList，同样记住它，重启后才能还原
+      if (!listId) return
       saveListPrevSelectId(listId)
     })
 
     watch(wyUserId, () => {
-      void loadWyLists()
+      void reloadWyLists()
     }, { immediate: true })
 
     watch(() => props.remoteBoardId, (boardId) => {

@@ -65,6 +65,17 @@ export const findWyRemoteDraft = (boardId: string) => {
   )) ?? null
 }
 
+/**
+ * 由本地草稿列表 id 反查其对应的网易云歌单 boardId
+ * 草稿的 sourceListId 存的就是网易云歌单原始 id，而 boardId 形如 `mkr__<原始 id>`
+ */
+export const findWyRemoteBoardId = (listId: string): string | null => {
+  if (!listId?.startsWith('wy_remote_')) return null
+  const targetList = userLists.find(item => item.id == listId)
+  const remoteId = targetList?.sourceListId?.replace(/^wy__/, '')
+  return remoteId ? `mkr__${remoteId}` : null
+}
+
 const setSnapshot = (remoteId: string, hash: string) => {
   getSnapshots()[remoteId] = hash
   saveSnapshots()
