@@ -15,6 +15,7 @@ transition(enter-active-class="animated slideInRight" leave-active-class="animat
             p {{ $t('player__music_name') }}{{ musicInfo.name }}
             p {{ $t('player__music_singer') }}{{ musicInfo.singer }}
             p(v-if="musicInfo.album") {{ $t('player__music_album') }}{{ musicInfo.album }}
+          music-wiki(:class="$style.wiki")
 
       transition(enter-active-class="animated fadeIn" leave-active-class="animated fadeOut")
         LyricPlayer(v-if="visibled")
@@ -43,6 +44,7 @@ import {
 import LyricPlayer from './LyricPlayer.vue'
 import PlayBar from './PlayBar.vue'
 import MusicComment from './components/MusicComment/index.vue'
+import MusicWiki from './components/MusicWiki.vue'
 import ControlBtnsLeftHeader from './ControlBtnsLeftHeader.vue'
 import ControlBtnsRightHeader from './ControlBtnsRightHeader.vue'
 import { registerAutoHideMounse, unregisterAutoHideMounse } from './autoHideMounse'
@@ -57,6 +59,7 @@ export default {
     LyricPlayer,
     PlayBar,
     MusicComment,
+    MusicWiki,
   },
   setup() {
     const visibled = ref(false)
@@ -245,11 +248,14 @@ export default {
   justify-content: flex-start;
   max-width: 300px;
   min-height: 0;
+  width: 100%;
+  flex: 1 1 auto;
 }
 .img {
   max-width: 100%;
-  max-height: 80%;
+  max-height: 45%;
   min-width: 100%;
+  object-fit: contain;
   box-shadow: 0 0 6px var(--color-primary-alpha-500);
   border-radius: 6px;
   opacity: .8;
@@ -259,11 +265,18 @@ export default {
   margin-top: 15px;
   padding-bottom: 15px;
   min-height: 0;
+  flex-shrink: 0;
   p {
     line-height: 1.5;
     font-size: 14px;
     overflow-wrap: break-word;
   }
+}
+
+.wiki {
+  max-width: 300px;
+  width: 100%;
+  min-height: 0;
 }
 
 

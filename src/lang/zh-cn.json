@@ -256,6 +256,8 @@
   "player__music_album": "专辑名：",
   "player__music_name": "歌曲名：",
   "player__music_singer": "艺术家：",
+  "player__wiki_intro": "创作简介",
+  "player__wiki_language": "语种",
   "player__next": "下一首",
   "player__pause": "暂停",
   "player__pic_tip": "播放详情页（右击在「我的列表」定位当前播放的歌曲）",

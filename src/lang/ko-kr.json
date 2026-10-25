@@ -227,6 +227,8 @@
   "player__music_album": "앨범: ",
   "player__music_name": "제목: ",
   "player__music_singer": "아티스트: ",
+  "player__wiki_intro": "곡 소개",
+  "player__wiki_language": "언어",
   "player__next": "다음 곡",
   "player__pause": "일시정지",
   "player__pic_tip": "재생 상세 페이지\n(우클릭하면 \"내 서재\"에서 현재 재생 중인 곡을 찾을 수 있습니다)",

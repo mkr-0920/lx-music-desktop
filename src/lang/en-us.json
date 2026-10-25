@@ -256,6 +256,8 @@
   "player__music_album": "Album: ",
   "player__music_name": "Title: ",
   "player__music_singer": "Artist: ",
+  "player__wiki_intro": "About this song",
+  "player__wiki_language": "Language",
   "player__next": "Next",
   "player__pause": "Pause",
   "player__pic_tip": "Playback detail page\n(Right-click to locate the currently playing song in \"Your Library\")",
