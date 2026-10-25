@@ -25,10 +25,8 @@ export default {
     if (limit == null) limit = this.limit
     // console.log(`[WY search] 正在尝试第 ${retryNum} 次搜索: "${str}"`)
     return this.musicSearch(str, page, limit).then(result => {
-      //  console.log(`[WY search] 第 ${retryNum} 次尝试, 收到的 result:`, result)
       // 新接口的 code 在顶层
       if (!result || result.code !== 200) {
-        //  console.warn(`[WY search] 第 ${retryNum} 次尝试失败... (Code: ${result?.code})`)
         return this.search(str, page, limit, retryNum)
       }
       let list = this.handleResult(result.data?.resources || [])

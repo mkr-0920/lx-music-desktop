@@ -12,6 +12,7 @@ import mkr from './mkr/index'
 import { supportQuality } from './api-source'
 // 导入 userApi 状态
 import { userApi } from '@renderer/store'
+import { versionChars } from './versionChars'
 
 import leaderboard_daily from './wy/recommend/daily'
 import leaderboard_fm from './wy/recommend/fm'
@@ -188,10 +189,17 @@ export default {
     const fInterval = getIntv(interval)
 
     // --- 定义匹配规则 ---
-    // 规则1: 时长匹配 (允许±2秒的误差)
+    // 规则1: 时长匹配 (本地保持较严格的 ±3 秒容差)
     const isEqualsInterval = (intv) => Math.abs((fInterval || intv) - (intv || fInterval)) < 3
-    // 规则2: 歌名包含 (A包含B 或 B包含A)
-    const isIncludesName = (name) => (fMusicName.includes(name) || name.includes(fMusicName))
+    // 规则1.5: 版本词匹配 (上游: 候选歌名与原歌名对版本词的包含状态必须一致, 防止把 Live/伴奏/变速版匹配成原曲)
+    const isEqualsVersionMusicNameChar = (name) => {
+      for (const char of versionChars) {
+        if (name.includes(char) != fMusicName.includes(char)) return false
+      }
+      return true
+    }
+    // 规则2: 歌名包含 (A包含B 或 B包含A), 且版本词一致
+    const isIncludesName = (name) => (fMusicName.includes(name) || name.includes(fMusicName)) && isEqualsVersionMusicNameChar(name)
     // 规则3: 歌手包含
     const isIncludesSinger = (singer) => fSinger ? (fSinger.includes(singer) || singer.includes(fSinger)) : true
     // 规则4: 专辑名相等
